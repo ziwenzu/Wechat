@@ -1,0 +1,32 @@
+.DS_Store
+
+# Data and derived outputs
+analysis/data/
+analysis/outputs/
+analysis/temp/
+
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.lof
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+
+# OS/editor files
+Thumbs.db
+*.swp

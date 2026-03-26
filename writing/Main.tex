@@ -1,0 +1,337 @@
+\documentclass[12pt, american]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[letterpaper]{geometry}
+\geometry{verbose,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in}
+\pagestyle{plain}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{relsize}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{adjustbox}
+\usepackage{enumitem}
+\usepackage{titletoc}
+\usepackage[page,header]{appendix}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{lmodern}
+\usepackage{wrapfig}  
+\usepackage{array}
+\usepackage{mathtools}
+\usepackage{multirow}
+\usepackage[figuresright]{rotating}
+\usepackage{tabularx}
+\usepackage{framed}
+\usepackage{longtable}
+\usepackage[flushleft]{threeparttable}
+\usepackage{color}
+\usepackage{hyperref}  
+\usepackage{hhline}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{threeparttablex}
+\usepackage{txfonts}
+\hypersetup{
+  colorlinks=true,
+  citecolor={blue},
+urlcolor={blue},
+linkcolor ={blue}}
+\newcommand{\RowColor}{\rowcolor{cyan!30}} 
+\newtheorem{define}{Definition}
+\newtheorem{hypo}{Hypothesis}
+\newtheorem{ass}{Assumption}
+\usepackage{bibentry}
+\usepackage{longtable}
+\usepackage{tikz}
+\usepackage{tikz-qtree,tikz-qtree-compat}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes.multipart}
+\usepackage{CJKutf8}
+\usepackage[overlap, CJK]{ruby}
+\newenvironment{SChinese}{
+\CJKfamily{gkai}
+\CJKtilde
+\CJKnospace}{}
+\newcommand{\cntxt}[1]{\begin{CJK}{UTF8}{}\begin{SChinese}#1\end{SChinese}\end{CJK}}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs, threeparttable, siunitx}
+\newcommand{\sym}[1]{\ifmmode^{#1}\else\textsuperscript{#1}\fi} % ← only if you keep \sym
+\usepackage{fancyvrb}        % already in most modern templates
+\newtheorem{prop}{Proposition}
+\newtheorem{hyp}{Hypothesis}
+\usepackage{babel,csquotes}
+\usepackage[natbib,authordate,sorting=nyt,dashed=false,uniquename=false,citetracker=false,
+  ibidtracker=false,]{biblatex-chicago}
+\AtEveryBibitem{\clearlist{language}}
+\AtEveryBibitem{\clearfield{month}}
+\addbibresource{paper.bib}
+\usepackage{graphicx}
+\usepackage[svgnames]{xcolor}
+\lstset{language=R,
+    basicstyle=\small\ttfamily,
+    stringstyle=\color{DarkGreen},
+    otherkeywords={0,1,2,3,4,5,6,7,8,9},
+    morekeywords={TRUE,FALSE},
+    deletekeywords={data,frame,length,as,character},
+    keywordstyle=\color{blue},
+    commentstyle=\color{DarkGreen},
+}
+
+% --------------------------------------------------
+% COLOR BOX + CODE
+% --------------------------------------------------
+\usepackage[minted,most]{tcolorbox}  % load tcolorbox ONCE, with the minted library
+\usepackage{minted}                  % pygments interface
+\usepackage{newunicodechar}          % map any stray UTF‑8 chars
+
+% ----  Unicode fixes (curly quotes + real minus sign)  ----
+\newunicodechar{−}{\ensuremath{-}}  % U+2212
+% \newunicodechar{“}{``}% opening dbl quote
+% \newunicodechar{”}{''}% closing  dbl quote
+% \newunicodechar{’}{'} % apostrophe / closing sgl quote
+% after \usepackage{CJK}
+\makeatletter
+% when \bfseries is requested inside CJK, use the 'hei' family instead of bold 'gkai'
+\renewcommand\CJKbold{\CJKfamily{hei}}
+\makeatother
+
+\usepackage{tocloft}
+\cftsetpnumwidth{4em}   % set enough space for page numbers
+\cftsetrmarg{5em}       % adjust right margin to match
+
+
+% --------------------------------------------------
+% GLOBAL BOX STYLE
+% --------------------------------------------------
+\tcbset{
+  colframe      = blue!80!black,
+  boxrule       = 0.85pt,
+  sharp corners,
+  enhanced
+}
+\newcommand{\E}{\mathbb{E}}
+\DeclareMathOperator{\Var}{Var}
+% --------------------------------------------------
+% PROMPT‑STYLE BOX DEFINITION
+% --------------------------------------------------
+
+
+% The pre-analysis plan registration can be found here:   \url{https://doi.org/10.17605/OSF.IO/2XH9E}
+
+% acknowledgment: Molly Roberts, Victor Shih, Tongtong Zhang  Iza Ding  2024 scholar 
+
+\title{\textbf{Posting Like a State:\\ How do Citizens Interact with Autocrats'  Media
+}}\author{ Gary Ziwen Zu\thanks{Ph.D. candidate, Department of Political Science, UCSD. Email: \href{mailto:zzu@ucsd.edu}{zzu@ucsd.edu}.} }
+\date{\today}		
+
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+  \begin{abstract}
+  \noindent How do citizens in autocracies engage with official social media? Conventional accounts depict them as either compliant recipients of propaganda or skeptical resisters. I argue instead that governments strategically mix public service information with political messaging, and that citizens adjust their expressive engagement according to perceived risk. Using 4.3 million posts from Chinese local government WeChat accounts, I first document descriptive patterns: citizens overwhelmingly consume public service content, creating an attention dilemma in which high-quality service information helps build future audiences for propaganda while simultaneously crowding out attention to political messages at a given moment. Exploiting platform reforms that exogenously altered whether endorsement was public or private, a regression discontinuity design shows that  endorsement of political content, especially hard propaganda, falls sharply when endorsement becomes public, while private informational use remains unchanged. When endorsement returns to private, it increases but does not return to previous levels. These findings refine theories of preference falsification and specify the behavioral mechanisms through which digital authoritarian communication operates.
+
+\vspace{0.2in}
+
+\noindent \textbf{Keywords}: 
+
+ \end{abstract}
+
+ \centerline{Word Count: }
+
+
+
+\doublespacing
+\newpage
+\newcolumntype{x}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}p{#1}}
+\setcounter{page}{1} 
+\renewcommand{\thepage}{\arabic{page}}
+
+\begin{refsection}
+
+\section{Introduction}
+
+How do citizens in autocracies engage with official social media, and what does their behavior reveal about political preferences under repression? As governments move propaganda and public communication onto digital platforms, state-controlled accounts accumulate vast numbers of “reads,” “likes,” and “shares.” These engagement metrics are often interpreted as signals of regime support or the success of propaganda campaigns. Yet in authoritarian settings, citizens face both political and social risks when interacting with official content. As a result, the meaning of engagement is deeply ambiguous: clicking on, endorsing, or forwarding state-produced posts may reflect genuine support, strategic conformity, or simply a desire to access useful information while avoiding attention. Understanding how citizens navigate these competing incentives is central to evaluating the political significance of digital authoritarianism.
+
+
+
+
+
+
+
+Existing accounts tend to portray citizens in autocracies as either propaganda conformists or skeptical consumers. One influential line of research emphasizes the power of state media and online propaganda to shape beliefs, manufacture consent, and maintain regime legitimacy. Another, more skeptical view highlights citizens’ sophistication: individuals discount propaganda, rely on alternative information sources, and treat official messaging as “cheap talk” that can be ignored without consequence. Parallel work on censorship and online control, especially in China, shows that regimes are highly selective in what they allow online, often tolerating some criticism while suppressing collective action. Yet both perspectives share an important limitation: they treat engagement with official content as if it were a straightforward indicator of either belief or resistance, rather than a strategic choice conditioned by the structure of the platform and the visibility of expressive acts.
+
+I build on and extend this literature by theorizing citizen engagement with official social media as a strategic response to two intertwined features of digital authoritarianism. First, governments strategically mix apolitical, instrumental content—such as service information, local news, and problem-solving guidance—with explicitly political propaganda. Apolitical posts function as clickbait and as credibility-enhancing signals: by providing useful information, governments attract followers to official channels, normalize routine interaction, and make propaganda more difficult to avoid. Second, citizens confront not only the possibility of state monitoring but also the prospect of peer surveillance and social judgment within their networks. On platforms where engagement is visible to friends and contacts, users must anticipate how their likes, comments, and shares will be interpreted by others, especially in politically contested environments where social ties often span diverging views.
+
+From this perspective, I argue that citizens calibrate their engagement with official content according to both the type of content and the visibility of expression. I distinguish between “hard” propaganda—posts that explicitly promote leaders, ideology, and core political narratives—and “soft” propaganda, which embeds regime-favorable themes in development, governance performance, or uplifting community stories. I also separate political engagement (publicly visible acts such as liking or sharing political posts) from informational use (reading or clicking through apolitical or instrumental posts) and private consumption (viewing content without leaving a visible trace). When platform design changes increase the visibility of engagement to one’s social circle, I expect citizens to withdraw from visible political signaling, especially hard propaganda that sends a strong, potentially polarizing signal, while maintaining or even increasing their reliance on official accounts for instrumental information. Preference falsification in digital authoritarianism, in this view, is not a binary choice between sincere expression and public conformity, but a heterogeneous process in which individuals selectively engage, withdraw, and compartmentalize different behaviors across content types and visibility regimes.
+
+To evaluate this argument, I draw on a new dataset of 4.3 million posts published by Chinese local government WeChat accounts. These accounts are a central component of China’s digital governance infrastructure: they disseminate policies, publicize leaders’ activities, provide service information, and circulate propaganda to followers embedded in local social networks. I classify posts into informational versus political content and further distinguish hard from soft propaganda. I then exploit platform-level policy reforms that exogenously altered the visibility of user engagement with official accounts within users’ friend circles. These reforms changed when and how actions such as likes or other forms of interaction became visible to one’s contacts, generating sharp discontinuities in the perceived social exposure of political engagement, while holding constant the underlying government accounts and content.
+
+Leveraging these reforms, I employ a regression-discontinuity design to estimate the causal effect of increased visibility on different forms of engagement. The results show a clear and asymmetric pattern. When visibility heightens, public engagement with political content declines markedly, while informational use of official accounts remains essentially unchanged. Within political content, visible endorsement of hard propaganda falls more sharply than engagement with soft propaganda. At the same time, measures of private consumption—such as reading behavior that leaves no socially visible trace—do not decline. Citizens continue to consume content, including propaganda, but become more reluctant to display political alignment in ways that can be observed by their peers.
+
+These patterns have three main implications. Substantively, they reveal what I call expressive polarization in response to visibility: individuals selectively suppress visible engagement with politically explicit, potentially divisive content while maintaining routine, instrumental use of official channels. Methodologically, they demonstrate that raw engagement metrics for official accounts in autocracies cannot be straightforwardly interpreted as support; they embed strategic responses to platform design and audience structure. Theoretically, the findings advance our understanding of preference falsification in digital authoritarian regimes. Classic theories treat inner-circle or familiar audiences as relatively safe spaces for political expression, assuming that risk is primarily tied to state monitoring of broad publics. My results show that even within friends-only networks, increased visibility can suppress political signaling because individuals anticipate social judgment and potential isolation from peers with divergent views. Preference falsification in digital authoritarianism is thus not confined to the public sphere: it extends into intimate digital micro-publics and operates through social as well as political pressures.
+
+
+\section{Contexts}
+
+WeChat is the central digital infrastructure of everyday life in China. Launched by Tencent in 2011, it has grown into an integrated ``super app'' that combines functions analogous to WhatsApp (messaging), Facebook (social networking and news feed), Twitter/X (news dissemination), and PayPal (payments) within a single platform. By 2024, WeChat reached an estimated 1.38 billion monthly active users worldwide, making it the sixth-largest social media platform globally and the dominant application in the Chinese market. Chinese users are highly engaged: one recent industry report estimates that they spend roughly 80 minutes per day on WeChat and send more than 45 billion messages daily. In practice, WeChat is not just one app among many, but the primary interface through which Chinese citizens communicate, consume news, and access digital public and private services.\footnote{See \url{https://www.demandsage.com/wechat-statistics/} and \url{https://blog.sinorbis.com/wechat-statistics}.} At the same time, content on the platform is subject to systematic deletion and filtering by Tencent and state censors, making WeChat a key site of both information control and regime legitimation.\footnote{See \url{https://citizenlab.ca/2015/07/tracking-censorship-on-wechat-public-accounts-platform/}.}
+
+Within this ecosystem, ``public accounts'' (also called ``official accounts'') play a role similar to Facebook Pages or X (Twitter) accounts for organizations. Public accounts allow organizations and individuals to push articles to subscribers, provide customer service, and embed lightweight ``apps within the app'' for transactions and services. There are now on the order of 20--25 million active official accounts, up from roughly eight million in 2014. Surveys suggest that about half of WeChat users follow 10--20 official accounts, and a majority report that news and promotions are key reasons for following them. For many Chinese organizations, WeChat has become the first channel for press releases, policy announcements, and data releases; websites are often secondary.\footnote{See \url{https://www.pekingnology.com/p/why-every-china-watcher-must-be-on}.} The Chinese party-state is deeply embedded in this public account ecosystem. Virtually all central ministries, provincial and municipal governments, courts, police bureaus, and state media outlets operate verified WeChat official accounts. These accounts serve multiple functions: they transmit propaganda and political messaging, publicize the leadership's priorities, and provide highly practical information and service announcements. Official news accounts fuse political reports with softer content such as lifestyle pieces, human-interest stories, and practical advice (for example, exam schedules, travel safety tips, or public health guidance), a strategy explicitly designed to make propaganda more appealing and to project responsiveness.\footnote{See \url{https://www.hoover.org/research/how-chinese-authorities-and-individuals-use-internet}.}
+
+
+A typical article on a public account appears as a mobile-optimized webpage with several built-in engagement mechanisms. The header displays the account name, publication time, and article title, followed by the main text, images, and any embedded video. At the bottom, WeChat provides a row of interactive buttons: a “like” (\textit{dianzan}) icon, a “wow/seen” button (\textit{zaikan}, previously branded \textit{haokan}), a “share” button that allows users to forward the article to individual chats or to their Moments feed,\footnote{Moments (\textit{pengyouquan}) is WeChat’s semi-private social feed, analogous to Facebook’s News Feed, where users share posts with their contacts.} a “collect” function (\textit{shoucang}) that bookmarks the article in a private folder, and a comment section (\textit{liuyan}) where followers can post and upvote responses. Each article also displays a cumulative read count, making overall engagement with the content publicly visible.
+
+Crucially for this study, WeChat has repeatedly redesigned the endorsement interface for public account articles in ways that change both the visibility and the implied cost of expressing approval for official news. In the early years of the public account platform, articles displayed a cumulative read count and a simple “like” (\textit{dianzan}) button at the bottom of the page. Users could tap to like an article, and only an aggregate like count was displayed; friends could not easily observe which specific items a user had endorsed. In this initial regime, signaling assent to official content was low-cost and largely private: visible engagement was essentially one-dimensional (read versus like), and likes did not visibly feed into a separate social discovery feed.
+
+In May 2017, Tencent introduced the “See” (\textit{kan-yi-kan}) feature in version 6.5.8, adding a new tab in the “Discover” menu that aggregates popular and recommended content. “See” is a panel parallel to Moments (\textit{pengyouquan}) that displays a stream of articles surfaced by friends’ activity and algorithmic recommendations, rather than by direct following of accounts. At this stage, however, the primary endorsement control at the bottom of public account articles remained the simple like button; the core logic of endorsement was still that of a low-visibility, low-cost signal, even as WeChat began to experiment with a more social, feed-based mode of news discovery.
+
+A first decisive discontinuity in the endorsement regime came on 21 December 2018, when WeChat 7.0 replaced the original like button on newly pushed public account articles with a “good-looking” (\textit{haokan}, later branded \textit{zaikan}) button tightly integrated with the “See” tab. Clicking “good-looking” no longer just incremented an anonymous counter at the bottom of the article; it also shared the article into the user’s “See” feed, where friends could view items that their contacts had marked as good-looking. In other words, a previously quasi-private like was transformed into a semi-public recommendation embedded in a social discovery stream. For official and political content, this change raised the perceived social and political cost of engagement: reacting to a public account article became a visibly traceable act within one’s personal network, and users had to consider both state and social audiences before endorsing an article. Subsequent tweaks in early 2019 unified the labeling of this function under the name “seen” (\textit{zaikan}) across the bottom-of-article button and the “See” interface, but the core mechanism remained the same.
+
+A second major discontinuity occurred on 29 June 2020, when WeChat reintroduced the traditional like button at the bottom of public account articles while retaining the “seen” (\textit{zaikan}) button and adding a dedicated share button. After this redesign, the three actions—like, seen, and share—were displayed side by side in a horizontal row of recommended interactions. The new configuration created a layered menu of expression: users could register a low-visibility like that does not share the article into “See,” choose a semi-public \textit{zaikan} that continues to feed into the “See” tab, or engage in the most public form of amplification by sharing the article to chats or Moments. In effect, the 2020 change partially restored a private channel of approval while preserving a more visible channel of endorsement and a fully public channel of sharing, lowering the cost of expressing assent but maintaining distinct, higher-cost pathways for socially observable support. Table~\ref{tab:wechat_reforms_short} summarizes these two sharp interface changes, which I exploit as quasi-exogenous discontinuities in the empirical analysis.
+
+\begin{table}[htbp]
+\centering
+\caption{Key WeChat public account engagement reforms}
+\label{tab:wechat_reforms_short}
+\begin{tabularx}{\textwidth}{p{2.2cm} X X}
+\toprule
+\textbf{Date} & \textbf{Interface change} & \textbf{Implication for expression and exposure} \\
+\midrule
+2018--12--21 &
+WeChat 7.0 replaces the bottom ``like'' (\textit{dianzan}) button on public account articles with a ``good-looking'' (\textit{haokan}, later \textit{zaikan}) button that automatically shares the article to the social discovery feed ``See'' (\textit{kanyikan}). &
+A formerly low-visibility like becomes a semi-public endorsement: clicking now both increments a visible counter and pushes the article into friends' See feed, increasing exposure and the perceived social and political cost of endorsing official news. \\
+\midrule
+2020--06--29 &
+The ``like'' button is reintroduced at the bottom of public account articles alongside the existing ``seen'' (\textit{zaikan}) and share buttons. &
+Expression options become layered: users can register low-risk likes that do not feed into See, or use \textit{zaikan} and sharing to generate socially visible amplification, allowing sensitive approval to shift into lower-visibility channels. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Research Design}
+
+\subsection{Data}
+
+This dataset relies on the universe of posts published by 329 municipal-level government WeChat public accounts, comprising more than 4 million posts from 2013 through early 2025. For each post, I scraped the title and full article text, together with all engagement indicators displayed in the WeChat interface (reads, likes, shares, comments, and the platform-specific “good-looking” and “seen” counters). Because WeChat top-codes several counters at 100,000 (displayed as “100k+”), I recode these values to 100,001 to preserve rank ordering while explicitly reflecting censoring at the upper bound.\footnote{This recoding avoids missingness when engagement is analyzed as numeric. Results are robust to alternative treatments of top-coding (Appendix C).} Results show descriptive statistics see Table xxx
+
+To categorize post content at scale, I use OpenAI’s GPT-5.1 to assign each post a content-purpose label based on its title and full text. The classification prompt is written in Chinese and instructs the model to read each post closely, identify its primary purpose, and output a concise category label. To facilitate consistent parsing and auditing, the model returns a JSON object that includes the category label, a coarse confidence rating, 1–3 decision keywords, and a brief justification.\footnote{I run the model with deterministic decoding (temperature = 0; other decoding parameters fixed) and set the output budget to accommodate the required JSON without truncation. The full  prompt and all settings are provided in Appendix A.} Prompt development follows a two-step calibration procedure: I first draft a zero-shot prompt grounded in established typologies of Chinese official communication, then refine it on a separate random sample of 1,000 posts; after calibration, I freeze the prompt and apply it unchanged to the full corpus.\footnote{Appendix A provides the full classification documentation: the final  prompt (and all decoding settings), the category definitions and boundary-case rules, the calibration procedure on the 1,000-post development sample, the label-standardization and codebook-mapping rules, and the human-coding protocol for the 3,000-post validation sample (including training materials and the procedure used to produce a single reference label per post).}
+
+I validate the LLM labels against an independently coded gold-standard sample. I randomly sample 3,000 posts from the corpus and recruit ten trained research assistants to label them using the same prompt materials and category guidance provided to the LLM. I treat these human labels as the reference standard and evaluate model performance using precision, recall, and F1 for multi-class classification. Table X reports the aggregate metrics, and the Appendix reports category-level metrics and the confusion matrix.\footnote{Appendix B reports the full set of category-level precision/recall/F1 statistics and the confusion matrix used to diagnose classification error and motivate robustness checks.}
+
+
+Figure X groups municipal WeChat posts into a small set of substantive categories that map onto a central distinction in the propaganda literature between “hard” and “soft” propaganda. Recent work on authoritarian messaging emphasizes that propaganda is not monolithic: regimes pair overt, directive political communication with more subtle, affectively engaging content that is designed to travel in mass and social media environments. 
+
+I define hard propaganda as politically explicit, heavy-handed communication that foregrounds hierarchy, discipline, and the state’s coercive and organizational capacity. In this view, hard propaganda is often less about persuasion than about signaling regime strength and the ability to maintain order, including through highly visible leader-centric messaging and enforcement-oriented communication.  Consistent with this definition, I classify posts in “Leadership Activity and Official Governance” and “Regulation, Law Enforcement, and Discipline” as hard propaganda.
+
+I define soft propaganda as regime-favorable communication packaged in relatively appealing, nonconfrontational, and socially legible formats—often emphasizing performance, everyday aspirations, and collective pride rather than direct political instruction. The propaganda literature argues that these softer forms can be persuasive precisely because they are more entertaining, emotionally resonant, and less overtly didactic than hard propaganda.  In my data, posts in “Economic Development and Construction” and “Culture, Tourism, and City Branding” fit this soft-propaganda domain: they publicize achievements, development trajectories, and place-based identity in ways that associate the local state with competence and positive affect.
+
+Finally, “Public Services and Social Welfare” is treated separately as instrumental governance information for daily life. These posts primarily provide practical guidance (e.g., service access, eligibility, procedures, benefits) and are not primarily aimed at political signaling or persuasive regime narration, even though they are produced by state actors. (In practice, this separation also aligns with evidence that a substantial share of digital “propaganda” output in China consists of upbeat, uncontroversial content rather than engaged argument.) 
+
+
+
+
+
+Other descriptive statistics and figures are illustrated in appendix 
+
+\subsection{Empirical Methods}
+The first outcomes of interest is what content do citizens consume from official social media and how do governments produce media contents. 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage                  % start bibliography on a new page
+\begingroup               % keep spacing changes local to the bib only
+  \singlespacing          % force single-line spacing inside the bibliography
+  \setlength\bibitemsep{0pt}  % zero extra vertical space between entries
+  \printbibliography
+\endgroup
+
+
+
+
+
+\end{refsection}
+
+\newpage
+
+\appendix
+
+\section*{Online Supplemental Information}
+\doublespacing
+\startcontents[sections] \printcontents[sections]{l}{1}{\setcounter{tocdepth}{3}}
+\setcounter{page}{0} 
+\thispagestyle{empty}
+\newpage
+\renewcommand{\thepage}{SI-\arabic{page}}
+\setcounter{figure}{0} 
+\renewcommand{\thefigure}{SI.\arabic{figure}}     
+\setcounter{table}{0} 
+\renewcommand{\thetable}{SI.\arabic{table}}
+
+\section{LLM Content Classification Workflow}\label{app:llm}
+This appendix documents the full text-classification workflow used to label WeChat posts, including the frozen prompt, model settings, input construction, and postprocessing rules used to generate the analytic codebook categories.
+
+\subsection{Frozen prompt and required JSON output}\label{app:prompt}
+% Option A: verbatim (simple, robust)
+\begin{verbatim}
+PASTE YOUR FULL CHINESE PROMPT HERE (verbatim)
+\end{verbatim}
+
+% Option B: listings (nicer formatting)
+% \usepackage{listings} in preamble if you prefer
+% \begin{lstlisting}[basicstyle=\ttfamily\footnotesize,breaklines=true]
+% PASTE PROMPT HERE
+% \end{lstlisting}
+
+\subsection{Model and decoding settings}\label{app:settings}
+I implement classification with OpenAI GPT-5.1 using deterministic decoding. The model identifier, API endpoint, and all decoding parameters are fixed across the corpus and archived with replication materials.
+
+\subsection{Input construction and preprocessing}\label{app:input}
+Describe exactly what text you pass: title + full text; any truncation rule; any removal of boilerplate; language normalization.
+
+\subsection{Postprocessing, label normalization, and analytic codebook mapping}\label{app:mapping}
+Describe how raw labels are standardized (punctuation/whitespace/synonyms) and mapped into canonical analytic categories. Include a table mapping common variants to canonical labels.
+
+\clearpage
+\section{Human Validation Protocol and Reliability}\label{app:human}
+This appendix documents the human-coding procedure used to construct the gold-standard validation set and to benchmark model performance.
+
+\subsection{Sampling design for the validation set}\label{app:sampling}
+Describe random sampling of 3,000 posts from the corpus (and any stratification, if used).
+
+\subsection{RA training, instructions, and coding interface}\label{app:training}
+Summarize training, codebook, and the fact that RAs used the same materials as the LLM.
+
+\subsection{Constructing the reference label and inter-coder reliability}\label{app:reliability}
+Explain how you form a single gold label (majority vote or adjudication) and report reliability (Krippendorff’s alpha or Fleiss’ kappa).
+
+\clearpage
+\section{Model Performance}\label{app:performance}
+This appendix reports category-level classification performance and diagnostic summaries.
+
+\subsection{Aggregate metrics}\label{app:aggmetrics}
+Report micro- and macro-averaged precision/recall/F1.
+
+\subsection{Category-level metrics and confusion matrix}\label{app:confusion}
+Include a table of per-category precision/recall/F1 and the full confusion matrix (or a heatmap in an online appendix).
+
+
+
+
+\singlespacing
+
+
+
+\printbibliography
+
+
+\end{document}
