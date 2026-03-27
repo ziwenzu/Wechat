@@ -7,10 +7,11 @@ ensure_packages(c("data.table", "ggplot2", "rdrobust", "fs"))
 
 args <- parse_args()
 paths <- project_paths()
-fs::dir_create(paths$output, recurse = TRUE)
+fs::dir_create(paths$figures, recurse = TRUE)
+fs::dir_create(paths$tables, recurse = TRUE)
 
 input_name <- if (is.null(args$input)) "wechat_posts_clean.rds" else args$input
-input_path <- file.path(paths$output, input_name)
+input_path <- file.path(paths$data, input_name)
 
 message("Loading cleaned dataset: ", input_path)
 dt <- readRDS(input_path)
@@ -149,7 +150,7 @@ make_binned_plot <- function(window_dt, cutoff_label, group_name, outcome, file_
     ggplot2::theme_minimal(base_size = 12)
 
   ggplot2::ggsave(
-    filename = file.path(paths$output, file_name),
+    filename = file.path(paths$figures, file_name),
     plot = p,
     width = 9,
     height = 5.5,
@@ -191,7 +192,7 @@ for (i in seq_along(specs)) {
   }
 
   plot_name <- sprintf(
-    "rdd_%s_%s_%s.png",
+    "rdd_%s_%s_%s.pdf",
     gsub("-", "", spec$cutoff),
     spec$group,
     spec$outcome
@@ -214,11 +215,11 @@ for (i in seq_along(specs)) {
 
   capture.output(
     print(result$fit),
-    file = file.path(paths$output, txt_name)
+    file = file.path(paths$tables, txt_name)
   )
 }
 
 summary_table <- data.table::rbindlist(results)
-data.table::fwrite(summary_table, file.path(paths$output, "rdd_summary.csv"))
+data.table::fwrite(summary_table, file.path(paths$tables, "rdd_summary.csv"))
 
 message("Finished baseline RDD outputs.")

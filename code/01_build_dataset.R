@@ -9,7 +9,8 @@ options(datatable.print.nrows = 50)
 
 args <- parse_args()
 paths <- project_paths()
-fs::dir_create(paths$output, recurse = TRUE)
+fs::dir_create(paths$data, recurse = TRUE)
+fs::dir_create(paths$tables, recurse = TRUE)
 
 selected_cols <- c(
   "id",
@@ -107,7 +108,7 @@ if (!is.null(args$sample_n)) {
 }
 
 output_name <- if (is.null(args$output)) "wechat_posts_clean.rds" else args$output
-output_path <- file.path(paths$output, output_name)
+output_path <- file.path(paths$data, output_name)
 
 message("Writing cleaned dataset to: ", output_path)
 saveRDS(dt, output_path)
@@ -134,15 +135,15 @@ family_counts <- dt[, .(n_posts = .N), by = .(content_family, content_group)][
 
 data.table::fwrite(
   zero_summary,
-  file.path(paths$output, "metric_zero_summary.csv")
+  file.path(paths$tables, "metric_zero_summary.csv")
 )
 data.table::fwrite(
   coverage_summary,
-  file.path(paths$output, "dataset_coverage_summary.csv")
+  file.path(paths$tables, "dataset_coverage_summary.csv")
 )
 data.table::fwrite(
   family_counts,
-  file.path(paths$output, "content_group_counts.csv")
+  file.path(paths$tables, "content_group_counts.csv")
 )
 
 message("Finished building the R-ready dataset.")

@@ -1,9 +1,14 @@
 .DS_Store
 
-# Data and derived outputs
-analysis/data/
-analysis/outputs/
-analysis/temp/
+# Local data
+data/*
+!data/README.md
+
+# Generated outputs
+figures/*
+!figures/.gitkeep
+tables/*
+!tables/.gitkeep
 
 # R session files
 .Rhistory

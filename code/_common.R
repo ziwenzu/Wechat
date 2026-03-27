@@ -19,15 +19,25 @@ get_script_dir <- function() {
 
 project_paths <- function() {
   script_dir <- get_script_dir()
-  analysis_dir <- normalizePath(file.path(script_dir, ".."))
-  root_dir <- normalizePath(file.path(analysis_dir, ".."))
+  root_dir <- normalizePath(file.path(script_dir, ".."))
+
+  articles_candidates <- c(
+    file.path(root_dir, "data", "articles.csv"),
+    file.path(root_dir, "analysis", "data", "articles.csv")
+  )
+  articles_csv <- articles_candidates[file.exists(articles_candidates)][1]
+
+  if (is.na(articles_csv)) {
+    articles_csv <- file.path(root_dir, "data", "articles.csv")
+  }
 
   list(
     root = root_dir,
-    analysis = analysis_dir,
-    data = file.path(analysis_dir, "data"),
-    output = file.path(analysis_dir, "outputs", "r"),
-    articles_csv = file.path(analysis_dir, "data", "articles.csv")
+    code = file.path(root_dir, "code"),
+    data = file.path(root_dir, "data"),
+    figures = file.path(root_dir, "figures"),
+    tables = file.path(root_dir, "tables"),
+    articles_csv = articles_csv
   )
 }
 

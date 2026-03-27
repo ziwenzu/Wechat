@@ -7,10 +7,11 @@ ensure_packages(c("data.table", "ggplot2", "fs"))
 
 args <- parse_args()
 paths <- project_paths()
-fs::dir_create(paths$output, recurse = TRUE)
+fs::dir_create(paths$figures, recurse = TRUE)
+fs::dir_create(paths$tables, recurse = TRUE)
 
 input_name <- if (is.null(args$input)) "wechat_posts_clean.rds" else args$input
-input_path <- file.path(paths$output, input_name)
+input_path <- file.path(paths$data, input_name)
 
 message("Loading cleaned dataset: ", input_path)
 dt <- readRDS(input_path)
@@ -82,19 +83,19 @@ zero_profile <- data.table::rbindlist(lapply(metric_cols, function(col) {
 
 data.table::fwrite(
   family_summary,
-  file.path(paths$output, "descriptive_content_family.csv")
+  file.path(paths$tables, "descriptive_content_family.csv")
 )
 data.table::fwrite(
   group_summary,
-  file.path(paths$output, "descriptive_content_group.csv")
+  file.path(paths$tables, "descriptive_content_group.csv")
 )
 data.table::fwrite(
   year_family,
-  file.path(paths$output, "descriptive_year_family.csv")
+  file.path(paths$tables, "descriptive_year_family.csv")
 )
 data.table::fwrite(
   zero_profile,
-  file.path(paths$output, "descriptive_zero_profile.csv")
+  file.path(paths$tables, "descriptive_zero_profile.csv")
 )
 
 plot_posts <- ggplot2::ggplot(
@@ -126,7 +127,7 @@ plot_reads <- ggplot2::ggplot(
   ggplot2::theme_minimal(base_size = 12)
 
 ggplot2::ggsave(
-  filename = file.path(paths$output, "yearly_posts_by_family.png"),
+  filename = file.path(paths$figures, "yearly_posts_by_family.pdf"),
   plot = plot_posts,
   width = 9,
   height = 5.5,
@@ -134,7 +135,7 @@ ggplot2::ggsave(
 )
 
 ggplot2::ggsave(
-  filename = file.path(paths$output, "yearly_mean_reads_by_family.png"),
+  filename = file.path(paths$figures, "yearly_mean_reads_by_family.pdf"),
   plot = plot_reads,
   width = 9,
   height = 5.5,
