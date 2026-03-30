@@ -292,6 +292,8 @@ if (length(low_resample_idx) > 0L) {
   dt[low_resample_idx, read_num := as.integer(pmin(220L, redraw))]
 }
 
+dt[read_num > 100001L, read_num := 100001L]
+
 message("Rebuilding interaction counts in the copied dataset.")
 
 year_engagement_lookup <- c(

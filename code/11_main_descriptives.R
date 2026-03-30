@@ -3,28 +3,14 @@ bootstrap_file <- grep("^--file=", bootstrap_args, value = TRUE)
 bootstrap_path <- normalizePath(sub("^--file=", "", bootstrap_file[[1]]))
 source(file.path(dirname(bootstrap_path), "_common.R"))
 
-ensure_packages(c("data.table", "fs", "ggplot2", "scales"))
+ensure_packages(c("data.table", "fs"))
 
 paths <- project_paths()
 fs::dir_create(paths$tables, recurse = TRUE)
-fs::dir_create(paths$figures, recurse = TRUE)
 memo_dir <- file.path(paths$root, "memo")
 fs::dir_create(memo_dir, recurse = TRUE)
 
 dt <- data.table::as.data.table(readRDS(file.path(paths$data, "wechat_instructional_dataset.rds")))
-
-label_gloss <- c(
-  "意识形态与宣传教育" = "Ideological Education",
-  "时政与领导活动" = "Leadership and Political Events",
-  "公共服务信息" = "Public Service Information",
-  "社会保障与公共福利" = "Social Protection and Welfare",
-  "应急管理与风险沟通" = "Emergency and Risk Communication",
-  "政策与政务公开" = "Policy and Administrative Disclosure",
-  "社会治理与执法通报" = "Social Governance and Enforcement",
-  "群众动员与社会参与" = "Mass Mobilization and Participation",
-  "经济与发展建设" = "Economic Development and Construction",
-  "城市形象与文化活动" = "City Image and Cultural Activity"
-)
 
 label_short <- c(
   "意识形态与宣传教育" = "Ideological Education",
@@ -47,228 +33,154 @@ family_gloss <- c(
 )
 
 family_order <- c("public_service", "soft_propaganda", "state_governance", "hard_propaganda")
-family_colors <- c(
-  "Public Service" = "#0f6b6f",
-  "Soft Propaganda" = "#b45309",
-  "State Governance" = "#4b5563",
-  "Hard Propaganda" = "#9f1d20"
+category_order <- c(
+  "公共服务信息",
+  "应急管理与风险沟通",
+  "社会保障与公共福利",
+  "城市形象与文化活动",
+  "经济与发展建设",
+  "社会治理与执法通报",
+  "群众动员与社会参与",
+  "政策与政务公开",
+  "时政与领导活动",
+  "意识形态与宣传教育"
 )
 
-summarize_block <- function(d, total_n) {
-  data.table::data.table(
-    posts_m = nrow(d) / 1e6,
-    post_share_pct = 100 * nrow(d) / total_n,
-    mean_read = mean(d$read_num, na.rm = TRUE),
-    median_read = stats::median(d$read_num, na.rm = TRUE),
-    topcode_share_pct = 100 * mean(d$read_num >= 100001, na.rm = TRUE),
-    like_read_pct = 100 * mean(d$like_num / d$read_num, na.rm = TRUE),
-    share_read_pct = 100 * mean(d$share_num / d$read_num, na.rm = TRUE),
-    look_read_pct = 100 * mean(d$look_num / d$read_num, na.rm = TRUE),
-    collect_read_pct = 100 * mean(d$collect_num / d$read_num, na.rm = TRUE)
-  )
+metric_map <- list(
+  "Reads" = "read_num",
+  "Likes" = "like_num",
+  "Shares" = "share_num",
+  "Zaikan" = "look_num",
+  "Collects" = "collect_num"
+)
+
+fmt_int <- function(x) {
+  format(round(x), big.mark = ",", trim = TRUE, scientific = FALSE)
 }
 
-overall_total <- summarize_block(dt, nrow(dt))
-overall_total[, group := "Overall"]
+fmt_mean_sd <- function(mean_x, sd_x) {
+  paste0(fmt_int(mean_x), " (", fmt_int(sd_x), ")")
+}
 
-family_summary <- dt[
+overall_rows <- data.table::rbindlist(lapply(names(metric_map), function(metric_name) {
+  v <- dt[[metric_map[[metric_name]]]]
+  data.table::data.table(
+    Variable = metric_name,
+    Min = min(v, na.rm = TRUE),
+    Max = max(v, na.rm = TRUE),
+    Mean = mean(v, na.rm = TRUE),
+    Median = stats::median(v, na.rm = TRUE),
+    SD = stats::sd(v, na.rm = TRUE)
+  )
+}))
+
+family_table <- dt[
   ,
-  summarize_block(.SD, nrow(dt)),
+  .(
+    `Posts (M)` = .N / 1e6,
+    `Reads M (SD)` = fmt_mean_sd(mean(read_num), stats::sd(read_num)),
+    `Likes M (SD)` = fmt_mean_sd(mean(like_num), stats::sd(like_num)),
+    `Shares M (SD)` = fmt_mean_sd(mean(share_num), stats::sd(share_num)),
+    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num)),
+    `Collects M (SD)` = fmt_mean_sd(mean(collect_num), stats::sd(collect_num))
+  ),
   by = content_family
 ]
-family_summary[, group := unname(family_gloss[content_family])]
-family_summary <- family_summary[, .(
-  group,
-  posts_m,
-  post_share_pct,
-  mean_read,
-  median_read,
-  topcode_share_pct,
-  like_read_pct,
-  share_read_pct,
-  look_read_pct,
-  collect_read_pct
+family_table[, Group := unname(family_gloss[content_family])]
+family_table[, Group := factor(Group, levels = unname(family_gloss[family_order]))]
+data.table::setorder(family_table, Group)
+family_table[, Group := as.character(Group)]
+family_table <- family_table[, .(
+  Group,
+  `Posts (M)`,
+  `Reads M (SD)`,
+  `Likes M (SD)`,
+  `Shares M (SD)`,
+  `Zaikan M (SD)`,
+  `Collects M (SD)`
 )]
-family_summary[, group := factor(group, levels = unname(family_gloss[family_order]))]
-data.table::setorder(family_summary, group)
-family_summary[, group := as.character(group)]
 
-overall_table <- data.table::rbindlist(list(
-  overall_total[, .(
-    group,
-    posts_m,
-    post_share_pct,
-    mean_read,
-    median_read,
-    topcode_share_pct,
-    like_read_pct,
-    share_read_pct,
-    look_read_pct,
-    collect_read_pct
-  )],
-  family_summary
-), use.names = TRUE)
-
-category_summary <- dt[
+category_table <- dt[
   ,
-  summarize_block(.SD, nrow(dt)),
+  .(
+    `Posts (M)` = .N / 1e6,
+    `Reads M (SD)` = fmt_mean_sd(mean(read_num), stats::sd(read_num)),
+    `Likes M (SD)` = fmt_mean_sd(mean(like_num), stats::sd(like_num)),
+    `Shares M (SD)` = fmt_mean_sd(mean(share_num), stats::sd(share_num)),
+    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num)),
+    `Collects M (SD)` = fmt_mean_sd(mean(collect_num), stats::sd(collect_num))
+  ),
   by = .(category, content_family)
 ]
-category_summary[, family := unname(family_gloss[content_family])]
-category_summary[, detailed_label := unname(label_gloss[category])]
-category_summary[, short_label := unname(label_short[category])]
-category_summary[, family := factor(family, levels = unname(family_gloss[family_order]))]
-data.table::setorder(category_summary, family, -mean_read)
-category_summary[, family := as.character(family)]
-
-category_table <- category_summary[, .(
-  detailed_label,
-  family,
-  post_share_pct,
-  mean_read,
-  median_read,
-  topcode_share_pct,
-  like_read_pct,
-  share_read_pct,
-  look_read_pct,
-  collect_read_pct
+category_table[, Family := unname(family_gloss[content_family])]
+category_table[, Category := unname(label_short[category])]
+category_table[, category := factor(category, levels = category_order)]
+data.table::setorder(category_table, category)
+category_table <- category_table[, .(
+  Category,
+  Family,
+  `Posts (M)`,
+  `Reads M (SD)`,
+  `Likes M (SD)`,
+  `Shares M (SD)`,
+  `Zaikan M (SD)`,
+  `Collects M (SD)`
 )]
 
+family_mean_reads <- dt[, .(mean_reads = mean(read_num)), by = content_family]
+family_mean_reads[, Group := unname(family_gloss[content_family])]
+top_family <- family_mean_reads$Group[which.max(family_mean_reads$mean_reads)]
+
 write_tex_table(
-  overall_table,
-  file.path(paths$tables, "main_descriptive_overall_family.tex"),
-  caption = "Overall and family-level descriptive summary for the instructional WeChat corpus.",
-  label = "tab:main-descriptive-overall-family",
-  digits = c(
-    posts_m = 2L,
-    post_share_pct = 1L,
-    mean_read = 0L,
-    median_read = 0L,
-    topcode_share_pct = 2L,
-    like_read_pct = 2L,
-    share_read_pct = 2L,
-    look_read_pct = 2L,
-    collect_read_pct = 2L
-  )
+  overall_rows,
+  file.path(paths$tables, "main_descriptive_overall_stats.tex"),
+  caption = "Overall descriptive statistics for the main article-level engagement variables.",
+  label = "tab:main-descriptive-overall-stats",
+  digits = c(Min = 0L, Max = 0L, Mean = 0L, Median = 0L, SD = 0L)
+)
+
+write_tex_table(
+  family_table,
+  file.path(paths$tables, "main_descriptive_by_family.tex"),
+  caption = "Family-level descriptive statistics reported as means with standard deviations in parentheses.",
+  label = "tab:main-descriptive-by-family",
+  digits = c(`Posts (M)` = 2L),
+  align = "lrrrrrr"
 )
 
 write_tex_table(
   category_table,
   file.path(paths$tables, "main_descriptive_by_category.tex"),
-  caption = "Category-level descriptive summary for the instructional WeChat corpus.",
+  caption = "Category-level descriptive statistics reported as means with standard deviations in parentheses.",
   label = "tab:main-descriptive-by-category",
-  digits = c(
-    post_share_pct = 1L,
-    mean_read = 0L,
-    median_read = 0L,
-    topcode_share_pct = 2L,
-    like_read_pct = 2L,
-    share_read_pct = 2L,
-    look_read_pct = 2L,
-    collect_read_pct = 2L
-  ),
-  align = "llrrrrrrrr"
-)
-
-plot_data <- data.table::rbindlist(list(
-  category_summary[, .(
-    short_label,
-    family,
-    metric = "Mean reads",
-    value = mean_read
-  )],
-  category_summary[, .(
-    short_label,
-    family,
-    metric = "Like / read (%)",
-    value = like_read_pct
-  )],
-  category_summary[, .(
-    short_label,
-    family,
-    metric = "Share / read (%)",
-    value = share_read_pct
-  )],
-  category_summary[, .(
-    short_label,
-    family,
-    metric = "Look / read (%)",
-    value = look_read_pct
-  )],
-  category_summary[, .(
-    short_label,
-    family,
-    metric = "Collect / read (%)",
-    value = collect_read_pct
-  )]
-))
-
-category_levels <- category_summary[, short_label]
-plot_data[, short_label := factor(short_label, levels = rev(category_levels))]
-plot_data[, metric := factor(
-  metric,
-  levels = c("Mean reads", "Like / read (%)", "Share / read (%)", "Look / read (%)", "Collect / read (%)")
-)]
-
-descriptive_plot <- ggplot2::ggplot(
-  plot_data,
-  ggplot2::aes(x = value, y = short_label, color = family)
-) +
-  ggplot2::geom_point(size = 2.2, alpha = 0.95) +
-  ggplot2::facet_wrap(~metric, scales = "free_x", ncol = 3) +
-  ggplot2::scale_color_manual(values = family_colors) +
-  ggplot2::labs(
-    x = NULL,
-    y = NULL,
-    color = NULL,
-    title = "Category-level descriptive patterns in the instructional WeChat corpus"
-  ) +
-  ggplot2::theme_minimal(base_size = 10) +
-  ggplot2::theme(
-    legend.position = "bottom",
-    panel.grid.minor = ggplot2::element_blank(),
-    panel.grid.major.y = ggplot2::element_blank(),
-    strip.text = ggplot2::element_text(face = "bold"),
-    plot.title = ggplot2::element_text(face = "bold"),
-    axis.text.y = ggplot2::element_text(size = 8)
-  )
-
-ggplot2::ggsave(
-  filename = file.path(paths$figures, "main_descriptive_by_category.pdf"),
-  plot = descriptive_plot,
-  width = 11,
-  height = 7.5,
-  units = "in",
-  device = "pdf"
+  digits = c(`Posts (M)` = 2L),
+  align = "llrrrrrr"
 )
 
 memo_lines <- c(
   "# 2026-03-30 Main-Text Descriptives",
   "",
   "Outputs:",
-  paste0("- ", file.path(paths$tables, "main_descriptive_overall_family.tex")),
+  paste0("- ", file.path(paths$tables, "main_descriptive_overall_stats.tex")),
+  paste0("- ", file.path(paths$tables, "main_descriptive_by_family.tex")),
   paste0("- ", file.path(paths$tables, "main_descriptive_by_category.tex")),
-  paste0("- ", file.path(paths$figures, "main_descriptive_by_category.pdf")),
   "",
   "High-level takeaways:",
-  sprintf("- Overall mean reads: %.1f; median reads: %.0f.", overall_total$mean_read, overall_total$median_read),
-  sprintf("- Overall like/read ratio: %.2f%%; share/read ratio: %.2f%%; look/read ratio: %.2f%%; collect/read ratio: %.2f%%.",
-          overall_total$like_read_pct,
-          overall_total$share_read_pct,
-          overall_total$look_read_pct,
-          overall_total$collect_read_pct),
-  sprintf("- Highest-read family: %s (mean reads %.0f).",
-          family_summary$group[which.max(family_summary$mean_read)],
-          max(family_summary$mean_read)),
-  sprintf("- Lowest-read family: %s (mean reads %.0f).",
-          family_summary$group[which.min(family_summary$mean_read)],
-          min(family_summary$mean_read)),
-  sprintf("- Highest like/read category: %s (%.2f%%).",
-          category_summary$short_label[which.max(category_summary$like_read_pct)],
-          max(category_summary$like_read_pct)),
-  sprintf("- Highest share/read category: %s (%.2f%%).",
-          category_summary$short_label[which.max(category_summary$share_read_pct)],
-          max(category_summary$share_read_pct))
+  paste0("- Mean reads: ", fmt_int(mean(dt$read_num)), "; median reads: ", fmt_int(stats::median(dt$read_num)),
+         "; sd reads: ", fmt_int(stats::sd(dt$read_num)), "."),
+  paste0("- Mean likes: ", fmt_int(mean(dt$like_num)), "; median likes: ", fmt_int(stats::median(dt$like_num)),
+         "; sd likes: ", fmt_int(stats::sd(dt$like_num)), "."),
+  paste0("- Mean shares: ", fmt_int(mean(dt$share_num)), "; median shares: ", fmt_int(stats::median(dt$share_num)),
+         "; sd shares: ", fmt_int(stats::sd(dt$share_num)), "."),
+  paste0("- Mean zaikan: ", fmt_int(mean(dt$look_num)), "; median zaikan: ", fmt_int(stats::median(dt$look_num)),
+         "; sd zaikan: ", fmt_int(stats::sd(dt$look_num)), "."),
+  paste0("- Mean collects: ", fmt_int(mean(dt$collect_num)), "; median collects: ", fmt_int(stats::median(dt$collect_num)),
+         "; sd collects: ", fmt_int(stats::sd(dt$collect_num)), "."),
+  paste0("- Highest mean reads family: ", top_family, ".")
 )
 
-writeLines(memo_lines, file.path(memo_dir, "2026-03-30_main_descriptives.md"))
+writeLines(
+  memo_lines,
+  con = file.path(memo_dir, "2026-03-30_main_descriptives.md"),
+  useBytes = TRUE
+)
