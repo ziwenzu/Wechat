@@ -281,7 +281,7 @@ write_tex_table(
   caption = "Final ten-label taxonomy, higher-order families, and corpus shares.",
   label = "tab:wechat-taxonomy-summary-en",
   digits = c(n_posts = 0, share_posts = 3),
-  align = "p{0.34\\textwidth}p{0.18\\textwidth}rr"
+  align = "p{0.40\\textwidth}p{0.22\\textwidth}rr"
 )
 
 write_tex_table(
@@ -297,7 +297,7 @@ write_tex_table(
   file.path(paths$tables, "wechat_category_examples_en.tex"),
   caption = "Illustrative coding cues and title patterns for the ten detailed labels.",
   label = "tab:wechat-category-examples-en",
-  align = "p{0.20\\textwidth}p{0.14\\textwidth}p{0.26\\textwidth}p{0.30\\textwidth}"
+  align = "p{0.26\\textwidth}p{0.18\\textwidth}p{0.32\\textwidth}p{0.42\\textwidth}"
 )
 
 write_tex_table(
@@ -329,7 +329,7 @@ write_tex_table(
   caption = "Class-wise validation metrics for the ten detailed labels.",
   label = "tab:wechat-validation-detailed-by-class-en",
   digits = c(precision = 4, recall = 4, f1 = 4, support = 0),
-  align = "p{0.28\\textwidth}p{0.16\\textwidth}rrrr"
+  align = "p{0.38\\textwidth}p{0.22\\textwidth}rrrr"
 )
 
 write_tex_table(
