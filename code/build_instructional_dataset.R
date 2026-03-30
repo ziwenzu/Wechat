@@ -19,6 +19,29 @@ if (!all(c("like_num", "look_num", "share_num", "collect_num", "read_num", "publ
   stop("Source dataset is missing one or more required columns.", call. = FALSE)
 }
 
+simulate_hurdle_counts <- function(lambda, pos_prob, size_divisor = 6, min_positive = 1L) {
+  n <- length(lambda)
+  counts <- integer(n)
+  lambda <- pmax(as.numeric(lambda), 0)
+  pos_prob <- pmin(pmax(as.numeric(pos_prob), 0), 1)
+  active <- stats::runif(n) < pos_prob & lambda > 0
+  active_idx <- which(active)
+  if (length(active_idx) == 0L) {
+    return(counts)
+  }
+
+  mu_pos <- pmax(min_positive, lambda[active_idx] / pmax(pos_prob[active_idx], 0.02))
+  size <- pmax(0.9, mu_pos / size_divisor)
+  draws <- stats::rnbinom(length(active_idx), mu = mu_pos, size = size)
+  zero_idx <- which(draws < min_positive)
+  while (length(zero_idx) > 0L) {
+    draws[zero_idx] <- stats::rnbinom(length(zero_idx), mu = mu_pos[zero_idx], size = size[zero_idx])
+    zero_idx <- which(draws < min_positive)
+  }
+  counts[active_idx] <- draws
+  counts
+}
+
 message("Applying instructional-use measurement adjustments.")
 
 # Remove sparse pre-reform traces of the post-2018 public endorsement channel.
@@ -150,8 +173,8 @@ dt[
   baseline_read_floor := as.integer(round(
     ifelse(
       is_service_helpful,
-      stats::runif(.N, min = 18, max = 55),
-      stats::runif(.N, min = 12, max = 38)
+      stats::runif(.N, min = 8, max = 34),
+      stats::runif(.N, min = 4, max = 22)
     )
   ))
 ]
@@ -207,15 +230,66 @@ if (length(zero_read_idx) > 0L) {
   dt[zero_read_idx, read_num := simulated_reads]
 }
 
-low_generated_idx <- which(dt$read_generated_flag == 1L & dt$read_num <= 150L)
+low_generated_idx <- which(dt$read_generated_flag == 1L & dt$read_num <= 180L)
 if (length(low_generated_idx) > 0L) {
-  low_base <- dt$read_num[low_generated_idx]
-  low_smoothed <- stats::runif(
+  low_floor <- dt$read_generation_floor[low_generated_idx]
+  low_component <- sample.int(3L, length(low_generated_idx), replace = TRUE, prob = c(0.40, 0.38, 0.22))
+  beta_shape1 <- c(1.4, 2.0, 2.6)[low_component]
+  beta_shape2 <- c(5.2, 3.8, 2.9)[low_component]
+  beta_draw <- stats::rbeta(length(low_generated_idx), shape1 = beta_shape1, shape2 = beta_shape2)
+  beta_component <- low_floor + as.integer(round(beta_draw * pmax(28, 210 - low_floor)))
+  lognorm_component <- as.integer(round(exp(stats::rnorm(
     length(low_generated_idx),
-    min = pmax(1, low_base * 0.72 - 3),
-    max = low_base * 1.32 + 7
+    mean = log(pmax(low_floor + c(8, 18, 34)[low_component], 8)),
+    sd = c(0.26, 0.34, 0.46)[low_component]
+  ))))
+  use_beta <- stats::runif(length(low_generated_idx)) < 0.58
+  low_draw <- ifelse(use_beta, beta_component, lognorm_component)
+  low_draw <- low_draw + sample(-22:28, length(low_generated_idx), replace = TRUE)
+  dt[low_generated_idx, read_num := as.integer(pmin(260L, pmax(low_floor, low_draw)))]
+}
+
+for (pass in 1:2) {
+  low_smooth_idx <- which(dt$read_generated_flag == 1L & dt$read_num <= 140L)
+  if (length(low_smooth_idx) == 0L) {
+    break
+  }
+
+  low_vals <- dt$read_num[low_smooth_idx]
+  freq <- tabulate(pmax(1L, pmin(180L, low_vals)), nbins = 180L)
+  local_avg <- vapply(
+    seq_len(180L),
+    function(v) mean(freq[pmax(1L, v - 4L):pmin(180L, v + 4L)]),
+    numeric(1)
   )
-  dt[low_generated_idx, read_num := as.integer(round(low_smoothed))]
+  crowded_ratio <- pmax(0, freq / pmax(local_avg, 1) - 1)
+  move_prob_map <- pmin(0.45, crowded_ratio * 0.70)
+  move_prob <- move_prob_map[pmax(1L, pmin(180L, low_vals))]
+  move_flag <- stats::runif(length(low_smooth_idx)) < move_prob
+
+  if (any(move_flag)) {
+    moving_idx <- low_smooth_idx[move_flag]
+    offsets <- sample(c(-26:-5, 5:30), length(moving_idx), replace = TRUE)
+    jitter <- sample(-4:4, length(moving_idx), replace = TRUE)
+    candidate <- dt$read_num[moving_idx] + offsets + jitter
+    new_vals <- pmin(260L, pmax(dt$read_generation_floor[moving_idx], candidate))
+    dt[moving_idx, read_num := as.integer(new_vals)]
+  }
+}
+
+low_resample_idx <- which(
+  dt$read_generated_flag == 1L &
+    dt$read_num <= 120L &
+    stats::runif(nrow(dt)) < 0.42
+)
+if (length(low_resample_idx) > 0L) {
+  support <- 8L:180L
+  support_prob <- stats::dlnorm(support, meanlog = log(34), sdlog = 0.72)
+  support_prob <- support_prob / sum(support_prob)
+  redraw <- sample(support, length(low_resample_idx), replace = TRUE, prob = support_prob)
+  redraw <- redraw + sample(-5:9, length(low_resample_idx), replace = TRUE)
+  redraw <- pmax(dt$read_generation_floor[low_resample_idx], redraw)
+  dt[low_resample_idx, read_num := as.integer(pmin(220L, redraw))]
 }
 
 message("Rebuilding interaction counts in the copied dataset.")
@@ -227,6 +301,9 @@ year_engagement_lookup <- c(
 dt[, year_engagement_multiplier := unname(year_engagement_lookup[as.character(year)])]
 dt[is.na(year_engagement_multiplier), year_engagement_multiplier := 1]
 dt[, account_engagement_multiplier := pmin(pmax(sqrt(account_read_multiplier), 0.80), 1.75)]
+top_read_cut <- as.numeric(stats::quantile(dt$read_num, 0.99, na.rm = TRUE))
+dt[, top_read_flag := read_num >= top_read_cut]
+dt[, read_scale := pmin(1, log1p(read_num) / log(25000))]
 dt[
   ,
   recency_engagement_multiplier := ifelse(
@@ -277,19 +354,37 @@ dt[, common_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.22))]
 dt[, approval_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.18))]
 dt[, circulation_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.18))]
 dt[, utility_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.16))]
+dt[, engagement_cluster := exp(stats::rnorm(.N, mean = 0, sd = 0.14)) * common_shock^0.55]
+dt[
+  ,
+  top_broadcast_low_signal := stats::rbinom(
+    .N,
+    size = 1,
+    prob = pmin(
+      0.02 +
+        0.10 * as.integer(top_read_flag) +
+        0.12 * as.integer(is_major_event & !is_collectible) +
+        0.06 * as.integer(is_leader_news & !is_service_helpful),
+      0.22
+    )
+  )
+]
 dt[
   ,
   silent_interaction := stats::rbinom(
     .N,
     size = 1,
     prob = pmin(
-      0.004 +
-        0.012 * as.integer(hot_score >= 2 & !is_collectible) +
-        0.008 * as.integer(is_major_event & !is_service_helpful),
-      0.035
+      0.018 +
+        0.030 * as.integer(read_num <= 120) +
+        0.022 * as.integer(read_num <= 300) +
+        0.014 * as.integer(!is_service_helpful & !is_collectible) +
+        0.010 * as.integer(content_family == "hard_propaganda"),
+      0.12
     )
   )
 ]
+dt[top_read_flag == TRUE | hot_score >= 2L, silent_interaction := 0L]
 
 dt[
   ,
@@ -307,7 +402,7 @@ dt[
     0.035
   )
 ]
-dt[silent_interaction == 1, share_prob := share_prob * 0.35]
+dt[silent_interaction == 1, share_prob := share_prob * 0.55]
 dt[
   ,
   collect_prob := pmin(
@@ -324,7 +419,7 @@ dt[
   )
 ]
 dt[is_major_event & !is_collectible, collect_prob := collect_prob * 0.35]
-dt[silent_interaction == 1, collect_prob := collect_prob * 0.20]
+dt[silent_interaction == 1, collect_prob := collect_prob * 0.45]
 
 dt[, like_prob := 0]
 dt[publish_date < cut_like_to_look, like_prob :=
@@ -355,7 +450,7 @@ dt[publish_date >= cut_like_return, like_prob :=
     0.22
   )
 ]
-dt[silent_interaction == 1, like_prob := like_prob * 0.35]
+dt[silent_interaction == 1, like_prob := like_prob * 0.60]
 
 dt[, look_prob := 0]
 dt[publish_date >= cut_like_to_look & publish_date < cut_like_return, look_prob :=
@@ -386,12 +481,83 @@ dt[publish_date >= cut_like_return, look_prob :=
     0.024
   )
 ]
-dt[silent_interaction == 1, look_prob := look_prob * 0.35]
+dt[silent_interaction == 1, look_prob := look_prob * 0.60]
 
-dt[, share_num := stats::rbinom(.N, size = read_num, prob = share_prob)]
-dt[, collect_num := stats::rbinom(.N, size = read_num, prob = collect_prob)]
-dt[, like_num := stats::rbinom(.N, size = read_num, prob = like_prob)]
-dt[, look_num := stats::rbinom(.N, size = read_num, prob = look_prob)]
+dt[, like_lambda := read_num * like_prob * 1.28]
+dt[, share_lambda := read_num * share_prob]
+dt[, look_lambda := read_num * look_prob]
+dt[, collect_lambda := read_num * collect_prob]
+
+dt[is_major_event & !is_collectible, share_lambda := share_lambda * 1.12]
+dt[is_major_event & !is_collectible, collect_lambda := collect_lambda * 0.70]
+dt[is_collectible == TRUE, collect_lambda := collect_lambda * 1.10]
+
+dt[
+  ,
+  like_pos_prob := pmin(
+    (0.08 + 0.48 * read_scale +
+      0.08 * as.integer(is_service_helpful) +
+      0.05 * as.integer(is_big_city) +
+      0.05 * hot_score +
+      0.04 * as.integer(is_collectible)) *
+      common_shock^0.25 * approval_shock^0.22 * engagement_cluster^0.22,
+    0.90
+  )
+]
+dt[
+  ,
+  share_pos_prob := pmin(
+    (0.03 + 0.30 * read_scale +
+      0.07 * as.integer(is_service_helpful) +
+      0.05 * as.integer(is_big_city) +
+      0.07 * as.integer(is_major_event) +
+      0.10 * as.integer(is_collectible)) *
+      common_shock^0.22 * circulation_shock^0.22 * engagement_cluster^0.25,
+    0.82
+  )
+]
+dt[
+  ,
+  look_pos_prob := pmin(
+    (0.02 + 0.26 * read_scale +
+      0.04 * as.integer(is_service_helpful) +
+      0.04 * as.integer(is_big_city) +
+      0.05 * hot_score) *
+      common_shock^0.18 * approval_shock^0.20 * engagement_cluster^0.20,
+    0.72
+  )
+]
+dt[
+  ,
+  collect_pos_prob := pmin(
+    (0.01 + 0.12 * read_scale +
+      0.08 * as.integer(is_service_helpful) +
+      0.18 * as.integer(is_collectible) +
+      0.08 * as.integer(is_learning_material)) *
+      common_shock^0.16 * utility_shock^0.18 * engagement_cluster^0.16,
+    0.58
+  )
+]
+
+dt[silent_interaction == 1, like_pos_prob := like_pos_prob * 0.72]
+dt[silent_interaction == 1, share_pos_prob := share_pos_prob * 0.70]
+dt[silent_interaction == 1, look_pos_prob := look_pos_prob * 0.72]
+dt[silent_interaction == 1, collect_pos_prob := collect_pos_prob * 0.66]
+
+dt[top_read_flag == TRUE, like_pos_prob := pmax(like_pos_prob, 0.92)]
+dt[top_read_flag == TRUE, share_pos_prob := pmax(share_pos_prob, ifelse(is_major_event, 0.74, 0.60))]
+dt[top_read_flag == TRUE & publish_date >= cut_like_to_look, look_pos_prob := pmax(look_pos_prob, 0.68)]
+dt[top_read_flag == TRUE & !is_collectible, collect_pos_prob := pmin(pmax(collect_pos_prob, 0.08), 0.22)]
+dt[top_read_flag == TRUE & is_collectible, collect_pos_prob := pmax(collect_pos_prob, 0.38)]
+
+dt[top_broadcast_low_signal == 1L, share_pos_prob := share_pos_prob * 0.50]
+dt[top_broadcast_low_signal == 1L, collect_pos_prob := collect_pos_prob * 0.20]
+dt[top_broadcast_low_signal == 1L & is_major_event == TRUE, look_pos_prob := look_pos_prob * 0.70]
+
+dt[, like_num := pmin(read_num, simulate_hurdle_counts(like_lambda, like_pos_prob, size_divisor = 7, min_positive = 1L))]
+dt[, share_num := pmin(read_num, simulate_hurdle_counts(share_lambda, share_pos_prob, size_divisor = 5, min_positive = 1L))]
+dt[, look_num := pmin(read_num, simulate_hurdle_counts(look_lambda, look_pos_prob, size_divisor = 5, min_positive = 1L))]
+dt[, collect_num := pmin(read_num, simulate_hurdle_counts(collect_lambda, collect_pos_prob, size_divisor = 4, min_positive = 1L))]
 
 dt[, public_signal_num := share_num + look_num]
 dt[, total_reaction_num := like_num + share_num + look_num + collect_num]
@@ -421,6 +587,8 @@ dt[, `:=`(
   is_leader_news = NULL,
   is_learning_material = NULL,
   hot_score = NULL,
+  top_read_flag = NULL,
+  read_scale = NULL,
   year_engagement_multiplier = NULL,
   account_engagement_multiplier = NULL,
   recency_engagement_multiplier = NULL,
@@ -428,12 +596,22 @@ dt[, `:=`(
   approval_shock = NULL,
   circulation_shock = NULL,
   utility_shock = NULL,
+  engagement_cluster = NULL,
+  top_broadcast_low_signal = NULL,
   baseline_read_floor = NULL,
   silent_interaction = NULL,
   share_prob = NULL,
   collect_prob = NULL,
   like_prob = NULL,
-  look_prob = NULL
+  look_prob = NULL,
+  like_lambda = NULL,
+  share_lambda = NULL,
+  look_lambda = NULL,
+  collect_lambda = NULL,
+  like_pos_prob = NULL,
+  share_pos_prob = NULL,
+  look_pos_prob = NULL,
+  collect_pos_prob = NULL
 )]
 
 message("Writing instructional-use dataset to: ", output_path)
