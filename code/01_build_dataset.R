@@ -21,6 +21,8 @@ selected_cols <- c(
   "YEAR",
   "DATE",
   "category",
+  "reason",
+  "keywords",
   "confidence",
   "read_num",
   "like_num",
@@ -63,9 +65,60 @@ for (col in numeric_cols) {
 
 dt[, publish_date := as.Date(sprintf("%04d-%s", year, date_mmdd))]
 dt <- dt[!is.na(publish_date)]
+analysis_start <- as.Date("2015-01-01")
+analysis_end <- as.Date("2024-12-31")
+dt <- dt[publish_date >= analysis_start & publish_date <= analysis_end]
 dt[, account_id := .GRP, by = public_account_name]
 dt[, category_raw := category]
-dt[, category := normalize_category(category)]
+dt[, category_raw_clean := trimws(as.character(category_raw))]
+
+raw_lookup <- data.table::data.table(
+  category_raw_clean = sort(unique(dt$category_raw_clean))
+)
+raw_lookup[, category_canonical := normalize_category(category = category_raw_clean)]
+lookup_vec <- stats::setNames(
+  raw_lookup$category_canonical,
+  raw_lookup$category_raw_clean
+)
+dt[, category := unname(lookup_vec[category_raw_clean])]
+
+generic_raw_labels <- c(
+  "其他",
+  "其它",
+  "未知",
+  "无",
+  "未分类",
+  "不适用",
+  "无具体分类",
+  "无匹配分类",
+  "无效内容",
+  "暂无分类",
+  "暂无合适分类",
+  "非明确分类",
+  "低",
+  "草稿",
+  "自创分类",
+  "自主创造",
+  "（专业分类名称）",
+  "内容归纳与分类",
+  "综合信息",
+  "热点信息",
+  "热点新闻",
+  "即时新闻",
+  "新闻与信息",
+  "新闻动态",
+  "工作汇报"
+)
+
+needs_row_level <- dt$category_raw_clean %in% generic_raw_labels |
+  nchar(dt$category_raw_clean) > 40
+
+dt[needs_row_level, category := normalize_category(
+  category = category_raw_clean,
+  reason = reason,
+  keywords = keywords,
+  title = title
+)]
 
 metric_cols <- c(
   "read_num",

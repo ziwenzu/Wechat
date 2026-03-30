@@ -234,43 +234,6 @@ write_tex_table <- function(
   writeLines(lines, con = path, useBytes = TRUE)
 }
 
-category_normalization_map <- data.frame(
-  raw_label = c(
-    "纪检监察与党风廉政",
-    "公众服务信息",
-    "文化活动与城市形象",
-    "文化形象与城市活动",
-    "政治与政务公开",
-    "宣传教育与意识形态",
-    "社会动员与社会参与",
-    "纪委监察与党风廉政",
-    "纪律监察与党风廉政"
-  ),
-  canonical_label = c(
-    "意识形态与宣传教育",
-    "公共服务信息",
-    "城市形象与文化活动",
-    "城市形象与文化活动",
-    "政策与政务公开",
-    "意识形态与宣传教育",
-    "群众动员与社会参与",
-    "意识形态与宣传教育",
-    "意识形态与宣传教育"
-  ),
-  stringsAsFactors = FALSE
-)
-
-normalize_category <- function(category) {
-  out <- as.character(category)
-  lookup <- stats::setNames(
-    category_normalization_map$canonical_label,
-    category_normalization_map$raw_label
-  )
-  normalized <- unname(lookup[out])
-  out[!is.na(normalized)] <- normalized[!is.na(normalized)]
-  out
-}
-
 content_map <- data.frame(
   category = c(
     "意识形态与宣传教育",
@@ -310,6 +273,429 @@ content_map <- data.frame(
   ),
   stringsAsFactors = FALSE
 )
+
+category_normalization_map <- data.frame(
+  raw_label = c(
+    "纪检监察与党风廉政",
+    "公众服务信息",
+    "文化活动与城市形象",
+    "文化形象与城市活动",
+    "政治与政务公开",
+    "宣传教育与意识形态",
+    "社会动员与社会参与",
+    "纪委监察与党风廉政",
+    "纪律监察与党风廉政",
+    " policy and government disclosure",
+    "policy and government disclosure",
+    "Policy and Government Disclosure",
+    "POLICY AND GOVERNMENT DISCLOSURE",
+    "Economic and Development Construction",
+    " Economic and Development Construction",
+    "城市形象与文化活动",
+    " 应急管理与风险沟通",
+    " 时政与领导活动",
+    "意 识形态与宣传教育",
+    "意識形态与宣传教育",
+    "意识形態与宣传教育",
+    "時政與領導活動",
+    "政策与政務公開",
+    "政策与政务公開",
+    "社会治理与执法通報",
+    "群眾動員與社會參與",
+    "應急管理与风险沟通"
+  ),
+  canonical_label = c(
+    "意识形态与宣传教育",
+    "公共服务信息",
+    "城市形象与文化活动",
+    "城市形象与文化活动",
+    "政策与政务公开",
+    "意识形态与宣传教育",
+    "群众动员与社会参与",
+    "意识形态与宣传教育",
+    "意识形态与宣传教育",
+    "政策与政务公开",
+    "政策与政务公开",
+    "政策与政务公开",
+    "政策与政务公开",
+    "经济与发展建设",
+    "经济与发展建设",
+    "城市形象与文化活动",
+    "应急管理与风险沟通",
+    "时政与领导活动",
+    "意识形态与宣传教育",
+    "意识形态与宣传教育",
+    "意识形态与宣传教育",
+    "时政与领导活动",
+    "政策与政务公开",
+    "政策与政务公开",
+    "社会治理与执法通报",
+    "群众动员与社会参与",
+    "应急管理与风险沟通"
+  ),
+  stringsAsFactors = FALSE
+)
+
+normalize_text_for_matching <- function(x) {
+  x <- as.character(x)
+  x[is.na(x)] <- ""
+  x <- trimws(x)
+  x <- gsub("[\r\n\t]", " ", x, perl = TRUE)
+  x <- gsub("[[:space:]]+", " ", x, perl = TRUE)
+  tolower(x)
+}
+
+contains_any_pattern <- function(text, patterns) {
+  grepl(
+    paste0("(", paste(patterns, collapse = "|"), ")"),
+    text,
+    ignore.case = TRUE,
+    perl = TRUE
+  )
+}
+
+assign_when <- function(out, unresolved, condition, value) {
+  idx <- unresolved & condition
+  out[idx] <- value
+  out
+}
+
+normalize_category <- function(category, reason = "", keywords = "", title = "") {
+  raw_category <- as.character(category)
+  raw_category[is.na(raw_category)] <- ""
+  reason <- as.character(reason)
+  reason[is.na(reason)] <- ""
+  keywords <- as.character(keywords)
+  keywords[is.na(keywords)] <- ""
+  title <- as.character(title)
+  title[is.na(title)] <- ""
+
+  exact_lookup <- stats::setNames(
+    category_normalization_map$canonical_label,
+    trimws(category_normalization_map$raw_label)
+  )
+
+  out <- trimws(raw_category)
+  exact_match <- unname(exact_lookup[out])
+  out[!is.na(exact_match)] <- exact_match[!is.na(exact_match)]
+
+  canonical_categories <- content_map$category
+  combined_text <- normalize_text_for_matching(
+    paste(raw_category, reason, keywords, title, sep = " | ")
+  )
+
+  unresolved <- !(out %in% canonical_categories)
+
+  leadership_patterns <- c(
+    "时政",
+    "领导活动",
+    "领导调研",
+    "领导视察",
+    "领导讲话",
+    "领导动态",
+    "政务动态",
+    "会议与领导活动",
+    "与领导活动",
+    "领导活动与",
+    "人事任免",
+    "干部公示",
+    "干部选拔",
+    "揭牌",
+    "签约",
+    "开工",
+    "授牌",
+    "典礼"
+  )
+  emergency_patterns <- c(
+    "应急",
+    "风险沟通",
+    "疫情",
+    "防控",
+    "灾害",
+    "预警",
+    "安全生产",
+    "辟谣",
+    "火灾",
+    "地震",
+    "洪水",
+    "防汛",
+    "台风",
+    "气象",
+    "天气",
+    "事故",
+    "风险",
+    "防灾",
+    "公共安全",
+    "安全管理"
+  )
+  governance_patterns <- c(
+    "社会治理",
+    "执法",
+    "司法",
+    "法律",
+    "法治",
+    "审判",
+    "公安",
+    "反诈",
+    "市场监管",
+    "监管",
+    "整治",
+    "处罚",
+    "垃圾分类",
+    "维权",
+    "禁毒",
+    "城管",
+    "督察",
+    "犯罪",
+    "扫黑"
+  )
+  policy_patterns <- c(
+    "政策",
+    "政务公开",
+    "公示",
+    "政府公告",
+    "财政预算",
+    "统计数据",
+    "工作汇报",
+    "年报",
+    "政策解读",
+    "预算",
+    "数据",
+    "公开程序",
+    "government disclosure"
+  )
+  welfare_patterns <- c(
+    "社会保障",
+    "公共福利",
+    "教育医疗养老",
+    "教育",
+    "医疗",
+    "卫生",
+    "健康",
+    "养老",
+    "就业",
+    "人才",
+    "招聘",
+    "人事",
+    "医保",
+    "低保",
+    "救助",
+    "住房",
+    "报销",
+    "落户",
+    "补贴",
+    "教师",
+    "学校",
+    "招生",
+    "考试"
+  )
+  public_service_patterns <- c(
+    "公共服务",
+    "服务信息",
+    "服务指南",
+    "办事",
+    "办理",
+    "指南",
+    "提醒",
+    "贴士",
+    "报名",
+    "缴费",
+    "交通管理信息",
+    "生活小贴士",
+    "生活指南",
+    "生活指导",
+    "公告与通知",
+    "金融服务信息",
+    "街道办事处公告"
+  )
+  mobilization_patterns <- c(
+    "社会参与",
+    "群众动员",
+    "志愿",
+    "投票",
+    "征集",
+    "问卷",
+    "倡议",
+    "文明实践",
+    "互动",
+    "打卡",
+    "随手拍",
+    "公众参与",
+    "参与活动",
+    "网络互动",
+    "动员"
+  )
+  hard_propaganda_patterns <- c(
+    "意识形态",
+    "宣传教育",
+    "宣传与教育",
+    "理论学习",
+    "党风廉政",
+    "纪检",
+    "纪委",
+    "纪律监察",
+    "廉政",
+    "党纪",
+    "巡视",
+    "巡察",
+    "党务",
+    "党的建设",
+    "党员",
+    "爱国主义",
+    "红色",
+    "思想",
+    "榜样",
+    "典型",
+    "移风易俗",
+    "文明创建",
+    "精神力量"
+  )
+  culture_patterns <- c(
+    "城市形象",
+    "文化活动",
+    "地方故事",
+    "文旅",
+    "旅游",
+    "展会",
+    "赛事",
+    "文创",
+    "节庆",
+    "节日",
+    "历史文化",
+    "文化遗产",
+    "人物专访",
+    "专访",
+    "纪念活动",
+    "城市品牌",
+    "风采",
+    "魅力",
+    "体育活动",
+    "体育赛事",
+    "文化"
+  )
+  development_patterns <- c(
+    "经济",
+    "发展建设",
+    "项目",
+    "招商",
+    "产业",
+    "科技创新",
+    "乡村振兴",
+    "基础设施",
+    "农村发展",
+    "农业",
+    "营商环境",
+    "投资",
+    "可持续发展",
+    "创新",
+    "建设",
+    "生态建设",
+    "生态保护",
+    "环境保护",
+    "生态环境"
+  )
+  generic_missing_patterns <- c(
+    "内容缺失",
+    "内容不完整",
+    "无法明确分类",
+    "无法判断",
+    "无法归类",
+    "未提供内容",
+    "不具备明确的主题",
+    "无法进行分类"
+  )
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, leadership_patterns),
+    "时政与领导活动"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, emergency_patterns),
+    "应急管理与风险沟通"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, governance_patterns),
+    "社会治理与执法通报"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, policy_patterns),
+    "政策与政务公开"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, hard_propaganda_patterns),
+    "意识形态与宣传教育"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, welfare_patterns),
+    "社会保障与公共福利"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, public_service_patterns),
+    "公共服务信息"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, mobilization_patterns),
+    "群众动员与社会参与"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, culture_patterns),
+    "城市形象与文化活动"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, development_patterns),
+    "经济与发展建设"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out <- assign_when(
+    out,
+    unresolved,
+    contains_any_pattern(combined_text, generic_missing_patterns),
+    "公共服务信息"
+  )
+  unresolved <- !(out %in% canonical_categories)
+
+  out[unresolved] <- "公共服务信息"
+  out
+}
 
 classify_content_group <- function(category) {
   lookup <- stats::setNames(content_map$content_group, content_map$category)

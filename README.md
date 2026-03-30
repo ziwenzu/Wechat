@@ -12,7 +12,7 @@ The current manuscript is being organized as an APSR-style theory and identifica
 - Classification rule: `hard_propaganda`, `soft_propaganda`, and `public_service` are not meant to be an exhaustive topic ontology. They are a theory-facing taxonomy organized by communicative purpose and expressive risk.
 - Auxiliary classes: `state_governance` should remain an auxiliary category, while `other` / `uncoded` captures residual or low-confidence cases.
 - Measurement workflow: do not rely on pure zero-shot three-way classification. Use finer-grained labels first, then map them into the three main analytic families.
-- Validation strategy: use explicit anchors in titles, sections, or source cues such as `学习`, `宣传`, `专栏`, `通知`, `办事`, or department labels as high-precision seed cases; then build a human-coded gold-standard sample; then use the LLM for full-corpus assignment; then use topic modeling only as a residual-topic audit.
+- Validation strategy: use explicit anchors in titles, sections, or source cues such as `学习`, `宣传`, `专栏`, `通知`, `办事`, or department labels as high-precision seed cases; then build a human-coded gold-standard sample; then use the LLM for full-corpus assignment.
 - Boundary handling: mixed posts are expected. Each post should receive one primary label based on its main communicative purpose, with optional secondary flags for leadership presence, service content, mobilization, emergency context, and related overlaps.
 - Output rule: research tables should be exported as LaTeX `.tex` files only, and research figures should be exported as PDF files only.
 
@@ -83,7 +83,6 @@ Posts should be assigned according to their primary communicative purpose rather
 - Use explicit anchors from titles, sections, and source cues to identify high-precision seed cases
 - Build and validate against a human-coded gold-standard sample
 - Use an LLM as a text coder on the full corpus, with deterministic settings and a frozen prompt
-- Use `BERTopic` / `STM` plus manual review only as an appendix robustness and residual-topic audit, not as the source of the paper's main categories
 
 ## Empirical Design
 
