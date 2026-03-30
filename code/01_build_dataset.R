@@ -165,49 +165,9 @@ if (!is.null(args$sample_n)) {
 output_name <- if (is.null(args$output)) "wechat_posts_clean.rds" else args$output
 output_path <- file.path(paths$data, output_name)
 
+dt[, c("category_raw", "category_raw_clean") := NULL]
+
 message("Writing cleaned dataset to: ", output_path)
 saveRDS(dt, output_path)
-
-zero_summary <- data.table::rbindlist(lapply(metric_cols, function(col) {
-  data.table::data.table(
-    metric = col,
-    zero_share = mean(dt[[col]] == 0, na.rm = TRUE),
-    mean_value = mean(dt[[col]], na.rm = TRUE),
-    median_value = stats::median(dt[[col]], na.rm = TRUE)
-  )
-}))
-
-coverage_summary <- data.table::data.table(
-  n_rows = nrow(dt),
-  n_accounts = data.table::uniqueN(dt$public_account_name),
-  min_date = min(dt$publish_date, na.rm = TRUE),
-  max_date = max(dt$publish_date, na.rm = TRUE)
-)
-
-family_counts <- dt[, .(n_posts = .N), by = .(content_family, content_group)][
-  order(content_family, -n_posts)
-]
-
-write_tex_table(
-  zero_summary,
-  file.path(paths$tables, "metric_zero_summary.tex"),
-  caption = "Metric-level zero summary for the cleaned dataset.",
-  label = "tab:metric-zero-summary",
-  digits = c(zero_share = 4, mean_value = 3, median_value = 3)
-)
-write_tex_table(
-  coverage_summary,
-  file.path(paths$tables, "dataset_coverage_summary.tex"),
-  caption = "Coverage summary for the cleaned WeChat dataset.",
-  label = "tab:dataset-coverage-summary",
-  digits = c(n_rows = 0, n_accounts = 0)
-)
-write_tex_table(
-  family_counts,
-  file.path(paths$tables, "content_group_counts.tex"),
-  caption = "Post counts by content family and content group.",
-  label = "tab:content-group-counts",
-  digits = c(n_posts = 0)
-)
 
 message("Finished building the R-ready dataset.")

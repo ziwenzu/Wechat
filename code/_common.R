@@ -208,7 +208,11 @@ write_tex_table <- function(
   lines <- c(
     "% Auto-generated table.",
     "\\begin{table}[!htbp]",
-    "\\centering"
+    "\\centering",
+    "\\begingroup",
+    "\\footnotesize",
+    "\\renewcommand{\\arraystretch}{1.05}",
+    "\\setlength{\\tabcolsep}{8pt}"
   )
 
   if (!is.null(caption)) {
@@ -221,6 +225,7 @@ write_tex_table <- function(
 
   lines <- c(
     lines,
+    "\\makebox[\\textwidth][c]{\\scalebox{0.8}{%",
     paste0("\\begin{tabular}{", align, "}"),
     "\\hline",
     paste0(paste(header, collapse = " & "), " \\\\"),
@@ -228,6 +233,8 @@ write_tex_table <- function(
     body_lines,
     "\\hline",
     "\\end{tabular}",
+    "}}",
+    "\\endgroup",
     "\\end{table}"
   )
 

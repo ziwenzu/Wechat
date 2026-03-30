@@ -10,7 +10,6 @@ fs::dir_create(paths$tables, recurse = TRUE)
 fs::dir_create(paths$figures, recurse = TRUE)
 
 clean <- data.table::as.data.table(readRDS(file.path(paths$data, "wechat_posts_clean.rds")))
-discovery <- data.table::as.data.table(readRDS(file.path(paths$data, "discovery_sample_400.rds")))
 audit <- data.table::as.data.table(readRDS(file.path(paths$data, "annotation_sample_2000_blind.rds")))
 
 label_order <- content_map$category
@@ -113,37 +112,9 @@ cohen_kappa <- function(x, y) {
   (p0 - pe) / (1 - pe)
 }
 
-corpus_summary <- data.table::data.table(
-  metric = c(
-    "Posts in cleaned corpus",
-    "Public accounts",
-    "Cities",
-    "Provincial-level units",
-    "Date range",
-    "Distinct raw category strings",
-    "Final detailed labels",
-    "Final higher-order families",
-    "Primary text field used for coding"
-  ),
-  value = c(
-    format(nrow(clean), big.mark = ","),
-    format(data.table::uniqueN(clean$public_account_name), big.mark = ","),
-    format(data.table::uniqueN(clean$city), big.mark = ","),
-    format(data.table::uniqueN(clean$province), big.mark = ","),
-    paste(format(min(clean$publish_date), "%Y-%m-%d"), "to", format(max(clean$publish_date), "%Y-%m-%d")),
-    format(data.table::uniqueN(clean$category_raw), big.mark = ","),
-    format(data.table::uniqueN(clean$category), big.mark = ","),
-    format(data.table::uniqueN(clean$content_family), big.mark = ","),
-    "Post title"
-  )
-)
-
 taxonomy_summary <- clean[
   ,
-  .(
-    n_posts = .N,
-    n_raw_labels = data.table::uniqueN(category_raw)
-  ),
+  .(n_posts = .N),
   by = .(category, content_family)
 ][
   ,
@@ -161,7 +132,7 @@ taxonomy_summary[, content_family := as.character(content_family)]
 taxonomy_summary_en <- data.table::copy(taxonomy_summary)
 taxonomy_summary_en[, detailed_label := unname(label_gloss[category])]
 taxonomy_summary_en[, family := unname(family_gloss[content_family])]
-taxonomy_summary_en <- taxonomy_summary_en[, .(detailed_label, family, n_posts, n_raw_labels, share_posts)]
+taxonomy_summary_en <- taxonomy_summary_en[, .(detailed_label, family, n_posts, share_posts)]
 
 discovery_design <- data.table::data.table(
   phase = c(
@@ -174,26 +145,12 @@ discovery_design <- data.table::data.table(
   target = c(200, 50, 50, 50, 50),
   rule = c(
     "Balanced grid across five time bins and the ten cleaned labels",
-    "Generic or low-information raw labels",
-    "Low-confidence coarse labels",
-    "Long-tail raw labels",
-    "Mixed-domain and boundary titles"
+    "Short or low-information titles",
+    "Low-confidence titles",
+    "Mixed-domain titles spanning multiple coding cues",
+    "Adjacent-boundary titles from semantically neighboring categories"
   )
 )
-
-sampled_discovery <- discovery[
-  ,
-  .N,
-  by = .(discovery_round, discovery_stratum)
-][order(discovery_round, discovery_stratum)]
-
-raw_remap_examples <- clean[
-  category_raw != category,
-  .(n_posts = .N),
-  by = .(raw_label = category_raw, cleaned_label = category)
-][order(-n_posts, raw_label)]
-
-raw_remap_examples <- raw_remap_examples[1:12]
 
 category_examples <- unique(clean[, .(category, content_family)])
 category_examples[, decision_cue := unname(label_cues[category])]
@@ -252,22 +209,11 @@ reliability_pretty <- data.table::data.table(
 detailed_metrics <- classification_metrics(audit$adjudicated_primary_label, audit$llm_primary_label)
 family_metrics <- classification_metrics(audit$adjudicated_family_label, audit$llm_family_label)
 
-detailed_summary_pretty <- data.table::data.table(
-  statistic = c("Accuracy", "Macro F1", "Evaluation titles"),
-  value = c(
-    sprintf("%.4f", detailed_metrics$summary$accuracy),
-    sprintf("%.4f", detailed_metrics$summary$macro_f1),
-    format(detailed_metrics$summary$n_eval, big.mark = ",")
-  )
-)
-
-family_summary_pretty <- data.table::data.table(
-  statistic = c("Accuracy", "Macro F1", "Evaluation titles"),
-  value = c(
-    sprintf("%.4f", family_metrics$summary$accuracy),
-    sprintf("%.4f", family_metrics$summary$macro_f1),
-    format(family_metrics$summary$n_eval, big.mark = ",")
-  )
+validation_overall_pretty <- data.table::data.table(
+  task = c("Detailed labels", "Higher-order families"),
+  accuracy = c(detailed_metrics$summary$accuracy, family_metrics$summary$accuracy),
+  macro_f1 = c(detailed_metrics$summary$macro_f1, family_metrics$summary$macro_f1),
+  evaluation_titles = c(detailed_metrics$summary$n_eval, family_metrics$summary$n_eval)
 )
 
 detailed_by_class_en <- data.table::copy(detailed_metrics$by_class)
@@ -330,18 +276,12 @@ print(confusion_plot)
 grDevices::dev.off()
 
 write_tex_table(
-  corpus_summary,
-  file.path(paths$tables, "wechat_corpus_summary.tex"),
-  caption = "Corpus coverage and coding inputs for the WeChat title dataset.",
-  label = "tab:wechat-corpus-summary"
-)
-
-write_tex_table(
   taxonomy_summary_en,
   file.path(paths$tables, "wechat_taxonomy_summary_en.tex"),
   caption = "Final ten-label taxonomy, higher-order families, and corpus shares.",
   label = "tab:wechat-taxonomy-summary-en",
-  digits = c(n_posts = 0, n_raw_labels = 0, share_posts = 3)
+  digits = c(n_posts = 0, share_posts = 3),
+  align = "p{0.34\\textwidth}p{0.18\\textwidth}rr"
 )
 
 write_tex_table(
@@ -353,26 +293,11 @@ write_tex_table(
 )
 
 write_tex_table(
-  sampled_discovery,
-  file.path(paths$tables, "wechat_discovery_realized.tex"),
-  caption = "Realized discovery-sample strata in the 400-post review sample.",
-  label = "tab:wechat-discovery-realized",
-  digits = c(N = 0)
-)
-
-write_tex_table(
-  raw_remap_examples,
-  file.path(paths$tables, "wechat_normalization_examples.tex"),
-  caption = "Illustrative raw-label remappings from the original archive to the final taxonomy.",
-  label = "tab:wechat-normalization-examples",
-  digits = c(n_posts = 0)
-)
-
-write_tex_table(
   category_examples_en,
   file.path(paths$tables, "wechat_category_examples_en.tex"),
   caption = "Illustrative coding cues and title patterns for the ten detailed labels.",
-  label = "tab:wechat-category-examples-en"
+  label = "tab:wechat-category-examples-en",
+  align = "p{0.20\\textwidth}p{0.14\\textwidth}p{0.26\\textwidth}p{0.30\\textwidth}"
 )
 
 write_tex_table(
@@ -391,17 +316,11 @@ write_tex_table(
 )
 
 write_tex_table(
-  detailed_summary_pretty,
-  file.path(paths$tables, "wechat_validation_detailed_summary_pretty.tex"),
-  caption = "Overall validation metrics for detailed-label LLM coding.",
-  label = "tab:wechat-validation-detailed-summary-pretty"
-)
-
-write_tex_table(
-  family_summary_pretty,
-  file.path(paths$tables, "wechat_validation_family_summary_pretty.tex"),
-  caption = "Overall validation metrics for family-level LLM coding.",
-  label = "tab:wechat-validation-family-summary-pretty"
+  validation_overall_pretty,
+  file.path(paths$tables, "wechat_validation_overall_summary_pretty.tex"),
+  caption = "Overall validation metrics for detailed-label and family-level LLM coding.",
+  label = "tab:wechat-validation-overall-summary-pretty",
+  digits = c(accuracy = 4, macro_f1 = 4, evaluation_titles = 0)
 )
 
 write_tex_table(
@@ -409,7 +328,8 @@ write_tex_table(
   file.path(paths$tables, "wechat_validation_detailed_by_class_en.tex"),
   caption = "Class-wise validation metrics for the ten detailed labels.",
   label = "tab:wechat-validation-detailed-by-class-en",
-  digits = c(precision = 4, recall = 4, f1 = 4, support = 0)
+  digits = c(precision = 4, recall = 4, f1 = 4, support = 0),
+  align = "p{0.28\\textwidth}p{0.16\\textwidth}rrrr"
 )
 
 write_tex_table(
