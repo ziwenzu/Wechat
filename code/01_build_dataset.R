@@ -64,6 +64,8 @@ for (col in numeric_cols) {
 dt[, publish_date := as.Date(sprintf("%04d-%s", year, date_mmdd))]
 dt <- dt[!is.na(publish_date)]
 dt[, account_id := .GRP, by = public_account_name]
+dt[, category_raw := category]
+dt[, category := normalize_category(category)]
 
 metric_cols <- c(
   "read_num",
@@ -133,17 +135,26 @@ family_counts <- dt[, .(n_posts = .N), by = .(content_family, content_group)][
   order(content_family, -n_posts)
 ]
 
-data.table::fwrite(
+write_tex_table(
   zero_summary,
-  file.path(paths$tables, "metric_zero_summary.csv")
+  file.path(paths$tables, "metric_zero_summary.tex"),
+  caption = "Metric-level zero summary for the cleaned dataset.",
+  label = "tab:metric-zero-summary",
+  digits = c(zero_share = 4, mean_value = 3, median_value = 3)
 )
-data.table::fwrite(
+write_tex_table(
   coverage_summary,
-  file.path(paths$tables, "dataset_coverage_summary.csv")
+  file.path(paths$tables, "dataset_coverage_summary.tex"),
+  caption = "Coverage summary for the cleaned WeChat dataset.",
+  label = "tab:dataset-coverage-summary",
+  digits = c(n_rows = 0, n_accounts = 0)
 )
-data.table::fwrite(
+write_tex_table(
   family_counts,
-  file.path(paths$tables, "content_group_counts.csv")
+  file.path(paths$tables, "content_group_counts.tex"),
+  caption = "Post counts by content family and content group.",
+  label = "tab:content-group-counts",
+  digits = c(n_posts = 0)
 )
 
 message("Finished building the R-ready dataset.")

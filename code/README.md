@@ -5,8 +5,8 @@ This folder contains the project’s R-only workflow. Stata code has been remove
 ## Files
 
 - [`01_build_dataset.R`](01_build_dataset.R): reads `data/articles.csv`, parses dates, creates transparent category mappings, and saves an R-ready dataset to `data/`.
-- [`02_descriptives.R`](02_descriptives.R): creates descriptive tables in `tables/` and saves plots in `figures/` as PDF files.
-- [`03_rdd.R`](03_rdd.R): runs a baseline daily-aggregated RDD around the 2017 and 2020 interface changes and saves figures as PDF files.
+- [`02_descriptives.R`](02_descriptives.R): creates descriptive tables in `tables/` as LaTeX `.tex` files and saves plots in `figures/` as PDF files, including annual trends for the three main theory-facing content families.
+- [`03_rdd.R`](03_rdd.R): runs daily-aggregated RDDs around the 2018 and 2020 interface changes, writes RDD tables to `tables/` as LaTeX `.tex` files, and saves selected figures as PDF files.
 - [`_common.R`](_common.R): shared helpers for paths, argument parsing, category mapping, and safe rate calculations.
 
 ## Suggested run order
@@ -27,6 +27,8 @@ Rscript code/03_rdd.R --input=wechat_posts_clean_smoke.rds
 
 ## Notes
 
+- Output rule for research deliverables: tables should be written as LaTeX `.tex` files and figures as PDF files.
+
 - `articles.csv` currently contains about 4.29 million posts from 329 official accounts spanning 2013 to 2025.
 - The engagement variables are extremely sparse. In the full file, zeros dominate:
   - `read_num`: about 95.4% zero
@@ -37,13 +39,15 @@ Rscript code/03_rdd.R --input=wechat_posts_clean_smoke.rds
 
 ## Category mapping choices
 
-The baseline mapping is intentionally conservative:
+The baseline mapping is intentionally theory-facing:
 
-- `propaganda`: `意识形态与宣传教育`, `时政与领导活动`
+- `hard_propaganda`: `意识形态与宣传教育`, `时政与领导活动`
+- `soft_propaganda`: `经济与发展建设`, `城市形象与文化活动`
 - `public_service`: `公共服务信息`, `社会保障与公共福利`, `应急管理与风险沟通`
-- `other`: everything else by default, with `state_governance` broken out as its own intermediate group
+- `state_governance`: `政策与政务公开`, `社会治理与执法通报`, `群众动员与社会参与`
+- `other`: anything left uncoded after label normalization
 
-This is meant as a transparent starting point, not the final theoretical classification. Once you settle the LLM labeling scheme, the easiest next step is to replace the mapping in [`_common.R`](_common.R).
+This is meant as a transparent starting point, not the final word on every boundary case. Once you settle the final LLM labeling scheme, the easiest next step is to replace the mapping in [`_common.R`](_common.R).
 
 ## Recommended next upgrades
 

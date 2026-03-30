@@ -102,6 +102,175 @@ weighted_mean_or_na <- function(x, w) {
   stats::weighted.mean(x[keep], w[keep])
 }
 
+latex_escape <- function(x) {
+  x <- as.character(x)
+  x[is.na(x)] <- ""
+  x <- gsub("\\\\", "\\\\textbackslash{}", x)
+  x <- gsub("([#$%&_{}])", "\\\\\\1", x, perl = TRUE)
+  x <- gsub("~", "\\\\textasciitilde{}", x, fixed = TRUE)
+  x <- gsub("\\^", "\\\\textasciicircum{}", x, perl = TRUE)
+  x
+}
+
+format_numeric_for_latex <- function(x, digits = 3L) {
+  out <- character(length(x))
+  out[is.na(x)] <- ""
+
+  non_missing <- !is.na(x)
+  integer_like <- non_missing & abs(x - round(x)) < 1e-9 & abs(x) >= 1
+  small_value <- non_missing & !integer_like & x != 0 & abs(x) < 10^(-digits)
+  regular_numeric <- non_missing & !integer_like & !small_value
+
+  out[integer_like] <- format(
+    round(x[integer_like]),
+    trim = TRUE,
+    scientific = FALSE,
+    big.mark = ","
+  )
+  out[small_value] <- formatC(x[small_value], format = "e", digits = digits)
+  out[regular_numeric] <- formatC(
+    x[regular_numeric],
+    format = "f",
+    digits = digits,
+    big.mark = ","
+  )
+
+  out
+}
+
+format_column_for_latex <- function(x, digits = 3L) {
+  if (inherits(x, "Date")) {
+    return(format(x, "%Y-%m-%d"))
+  }
+
+  if (is.numeric(x)) {
+    return(format_numeric_for_latex(x, digits = digits))
+  }
+
+  if (is.logical(x)) {
+    out <- ifelse(is.na(x), "", ifelse(x, "TRUE", "FALSE"))
+    return(out)
+  }
+
+  as.character(x)
+}
+
+resolve_digits <- function(digits, column_name, default_digits = 3L) {
+  if (length(digits) == 1L && is.null(names(digits))) {
+    return(as.integer(digits[[1]]))
+  }
+
+  if (!is.null(names(digits)) && column_name %in% names(digits)) {
+    return(as.integer(digits[[column_name]]))
+  }
+
+  as.integer(default_digits)
+}
+
+write_tex_table <- function(
+  data,
+  path,
+  caption = NULL,
+  label = NULL,
+  digits = 3L,
+  default_digits = 3L,
+  align = NULL
+) {
+  table_df <- as.data.frame(data, stringsAsFactors = FALSE)
+
+  if (ncol(table_df) == 0L) {
+    stop("Cannot write a LaTeX table with zero columns.", call. = FALSE)
+  }
+
+  formatted_df <- table_df
+
+  for (col_name in names(table_df)) {
+    col_digits <- resolve_digits(
+      digits = digits,
+      column_name = col_name,
+      default_digits = default_digits
+    )
+    formatted_df[[col_name]] <- latex_escape(
+      format_column_for_latex(table_df[[col_name]], digits = col_digits)
+    )
+  }
+
+  header <- latex_escape(names(formatted_df))
+  body_lines <- apply(formatted_df, 1, function(row) {
+    paste0(paste(row, collapse = " & "), " \\\\")
+  })
+
+  if (is.null(align)) {
+    column_align <- ifelse(vapply(table_df, is.numeric, logical(1)), "r", "l")
+    align <- paste(column_align, collapse = "")
+  }
+
+  lines <- c(
+    "% Auto-generated table.",
+    "\\begin{table}[!htbp]",
+    "\\centering"
+  )
+
+  if (!is.null(caption)) {
+    lines <- c(lines, paste0("\\caption{", latex_escape(caption), "}"))
+  }
+
+  if (!is.null(label)) {
+    lines <- c(lines, paste0("\\label{", label, "}"))
+  }
+
+  lines <- c(
+    lines,
+    paste0("\\begin{tabular}{", align, "}"),
+    "\\hline",
+    paste0(paste(header, collapse = " & "), " \\\\"),
+    "\\hline",
+    body_lines,
+    "\\hline",
+    "\\end{tabular}",
+    "\\end{table}"
+  )
+
+  writeLines(lines, con = path, useBytes = TRUE)
+}
+
+category_normalization_map <- data.frame(
+  raw_label = c(
+    "纪检监察与党风廉政",
+    "公众服务信息",
+    "文化活动与城市形象",
+    "文化形象与城市活动",
+    "政治与政务公开",
+    "宣传教育与意识形态",
+    "社会动员与社会参与",
+    "纪委监察与党风廉政",
+    "纪律监察与党风廉政"
+  ),
+  canonical_label = c(
+    "意识形态与宣传教育",
+    "公共服务信息",
+    "城市形象与文化活动",
+    "城市形象与文化活动",
+    "政策与政务公开",
+    "意识形态与宣传教育",
+    "群众动员与社会参与",
+    "意识形态与宣传教育",
+    "意识形态与宣传教育"
+  ),
+  stringsAsFactors = FALSE
+)
+
+normalize_category <- function(category) {
+  out <- as.character(category)
+  lookup <- stats::setNames(
+    category_normalization_map$canonical_label,
+    category_normalization_map$raw_label
+  )
+  normalized <- unname(lookup[out])
+  out[!is.na(normalized)] <- normalized[!is.na(normalized)]
+  out
+}
+
 content_map <- data.frame(
   category = c(
     "意识形态与宣传教育",
@@ -124,20 +293,20 @@ content_map <- data.frame(
     "state_governance",
     "state_governance",
     "state_governance",
-    "development_culture",
-    "development_culture"
+    "propaganda_soft",
+    "propaganda_soft"
   ),
   content_family = c(
-    "propaganda",
-    "propaganda",
+    "hard_propaganda",
+    "hard_propaganda",
     "public_service",
     "public_service",
     "public_service",
-    "other",
-    "other",
-    "other",
-    "other",
-    "other"
+    "state_governance",
+    "state_governance",
+    "state_governance",
+    "soft_propaganda",
+    "soft_propaganda"
   ),
   stringsAsFactors = FALSE
 )
