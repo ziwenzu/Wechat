@@ -40,7 +40,6 @@ It should not use:
 - `like_num`
 - `share_num`
 - `look_num`
-- `comment_count`
 - `collect_num`
 
 ## Frozen Prompt

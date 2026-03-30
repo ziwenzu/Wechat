@@ -28,7 +28,6 @@ selected_cols <- c(
   "like_num",
   "share_num",
   "look_num",
-  "comment_count",
   "collect_num"
 )
 
@@ -55,7 +54,6 @@ numeric_cols <- c(
   "like_num",
   "share_num",
   "look_num",
-  "comment_count",
   "collect_num"
 )
 
@@ -125,7 +123,6 @@ metric_cols <- c(
   "like_num",
   "share_num",
   "look_num",
-  "comment_count",
   "collect_num"
 )
 
@@ -137,7 +134,7 @@ dt[, content_group := classify_content_group(category)]
 dt[, content_family := classify_content_family(category)]
 
 dt[, public_signal_num := share_num + look_num]
-dt[, total_reaction_num := like_num + share_num + look_num + comment_count + collect_num]
+dt[, total_reaction_num := like_num + share_num + look_num + collect_num]
 dt[, any_engagement := total_reaction_num > 0 | read_num > 0]
 dt[, all_metrics_zero := rowSums(.SD) == 0, .SDcols = metric_cols]
 

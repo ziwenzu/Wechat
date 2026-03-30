@@ -3,7 +3,7 @@ bootstrap_file <- grep("^--file=", bootstrap_args, value = TRUE)
 bootstrap_path <- normalizePath(sub("^--file=", "", bootstrap_file[[1]]))
 source(file.path(dirname(bootstrap_path), "_common.R"))
 
-ensure_packages(c("data.table", "fs", "ggplot2"))
+ensure_packages(c("data.table", "fs", "ggplot2", "ggwordcloud", "showtext", "sysfonts"))
 
 paths <- project_paths()
 fs::dir_create(paths$tables, recurse = TRUE)
@@ -35,6 +35,20 @@ family_gloss <- c(
   "soft_propaganda" = "Soft Propaganda"
 )
 
+family_cloud_label <- c(
+  "hard_propaganda" = "Hard Propaganda\nleaders, Party discipline, political study",
+  "public_service" = "Public Service\nhealth, weather, daily services",
+  "state_governance" = "State Governance\npolicy, disclosure, enforcement",
+  "soft_propaganda" = "Soft Propaganda\ndevelopment, tourism, place branding"
+)
+
+family_colors <- c(
+  "Hard Propaganda\nleaders, Party discipline, political study" = "#9f1d20",
+  "Public Service\nhealth, weather, daily services" = "#0f6b6f",
+  "State Governance\npolicy, disclosure, enforcement" = "#4b5563",
+  "Soft Propaganda\ndevelopment, tourism, place branding" = "#b45309"
+)
+
 label_cues <- c(
   "意识形态与宣传教育" = "Political learning, Party education, discipline, and value transmission",
   "时政与领导活动" = "Leaders, meetings, inspections, speeches, appointments, and deployments",
@@ -60,6 +74,14 @@ label_examples <- c(
   "经济与发展建设" = "\"Major projects break ground\" style development-performance or infrastructure title",
   "城市形象与文化活动" = "\"Cherry blossom festival opens\" style culture, tourism, festival, or branding title"
 )
+
+split_keywords <- function(text_vec) {
+  text_vec <- as.character(text_vec)
+  text_vec[is.na(text_vec)] <- ""
+  text_vec <- gsub("[，,;；|/]+", "、", text_vec)
+  text_vec <- gsub("\\s+", "", text_vec)
+  unlist(strsplit(text_vec, "、", fixed = TRUE), use.names = FALSE)
+}
 
 classification_metrics <- function(truth, pred) {
   keep <- !(is.na(truth) | is.na(pred) | !nzchar(trimws(as.character(truth))) | !nzchar(trimws(as.character(pred))))
@@ -247,6 +269,98 @@ family_confusion[, row_total := sum(N), by = truth]
 family_confusion[, row_pct := ifelse(row_total > 0, N / row_total, 0)]
 family_confusion[, label_text := sprintf("%d\n%.0f%%", N, 100 * row_pct)]
 
+keyword_counts <- data.table::rbindlist(
+  lapply(family_order, function(family_name) {
+    family_keywords <- clean[content_family == family_name & !is.na(keywords) & nzchar(keywords), keywords]
+    tokens <- split_keywords(family_keywords)
+    tokens <- trimws(tokens)
+    tokens <- tokens[
+      nzchar(tokens) &
+        nchar(tokens) >= 2 &
+        !grepl("^[0-9]+$", tokens)
+    ]
+
+    token_counts <- sort(table(tokens), decreasing = TRUE)
+
+    data.table::data.table(
+      content_family = family_name,
+      keyword = names(token_counts),
+      n = as.integer(token_counts)
+    )
+  }),
+  use.names = TRUE
+)
+
+keyword_docfreq <- keyword_counts[, .(df = .N), by = keyword]
+keyword_counts <- keyword_counts[keyword_docfreq, on = "keyword"]
+keyword_counts[, family_total := sum(n), by = content_family]
+keyword_counts[, tf := n / family_total]
+keyword_counts[, idf := log(length(family_order) / df)]
+keyword_counts[, tf_idf := tf * idf]
+keyword_counts[, plot_score := log1p(n) * idf]
+keyword_counts <- keyword_counts[n >= 200 & plot_score > 0]
+keyword_counts[, family := unname(family_gloss[content_family])]
+
+keyword_cloud_data <- keyword_counts[
+  order(content_family, -plot_score, -n),
+  head(.SD, 85),
+  by = content_family
+]
+keyword_cloud_data[, family := factor(
+  unname(family_cloud_label[content_family]),
+  levels = unname(family_cloud_label[family_order])
+)]
+keyword_cloud_data[, plot_size := {
+  z <- plot_score
+  if (length(unique(z)) <= 1L) {
+    rep(8, .N)
+  } else {
+    4.8 + 6.2 * (z - min(z)) / (max(z) - min(z))
+  }
+}, by = content_family]
+
+if (!"cn_sans" %in% sysfonts::font_families()) {
+  sysfonts::font_add("cn_sans", regular = "/System/Library/Fonts/STHeiti Medium.ttc")
+}
+
+showtext::showtext_auto()
+showtext::showtext_opts(dpi = 300)
+
+keyword_cloud_plot <- ggplot2::ggplot(
+  keyword_cloud_data,
+  ggplot2::aes(label = keyword, size = plot_size, color = family)
+) +
+  ggwordcloud::geom_text_wordcloud_area(
+    area_corr = TRUE,
+    shape = "square",
+    eccentricity = 0.55,
+    rstep = 0.006,
+    tstep = 0.012,
+    perc_step = 0.005,
+    grid_size = 1,
+    max_grid_size = 160,
+    grid_margin = 0,
+    max_steps = 30,
+    rm_outside = TRUE,
+    seed = 1234,
+    family = "cn_sans"
+  ) +
+  ggplot2::facet_wrap(~family, ncol = 2) +
+  ggplot2::scale_size_identity() +
+  ggplot2::scale_color_manual(values = family_colors, guide = "none") +
+  ggplot2::labs(x = NULL, y = NULL) +
+  ggplot2::theme_minimal(base_family = "cn_sans", base_size = 11) +
+  ggplot2::theme(
+    panel.grid = ggplot2::element_blank(),
+    axis.text = ggplot2::element_blank(),
+    axis.title = ggplot2::element_blank(),
+    axis.ticks = ggplot2::element_blank(),
+    strip.text = ggplot2::element_text(size = 11.5, face = "bold", lineheight = 1.05),
+    panel.background = ggplot2::element_rect(fill = "white", color = NA),
+    plot.background = ggplot2::element_rect(fill = "white", color = NA),
+    panel.spacing = grid::unit(0.9, "lines")
+  )
+
 confusion_plot <- ggplot2::ggplot(
   family_confusion,
   ggplot2::aes(x = pred, y = truth, fill = row_pct)
@@ -275,13 +389,18 @@ grDevices::pdf(confusion_path, width = 7.4, height = 5.6, useDingbats = FALSE)
 print(confusion_plot)
 grDevices::dev.off()
 
+keyword_cloud_path <- file.path(paths$figures, "wechat_keyword_family_clouds.pdf")
+grDevices::pdf(keyword_cloud_path, width = 8.8, height = 6.9, useDingbats = FALSE)
+print(keyword_cloud_plot)
+grDevices::dev.off()
+
 write_tex_table(
   taxonomy_summary_en,
   file.path(paths$tables, "wechat_taxonomy_summary_en.tex"),
   caption = "Final ten-label taxonomy, higher-order families, and corpus shares.",
   label = "tab:wechat-taxonomy-summary-en",
   digits = c(n_posts = 0, share_posts = 3),
-  align = "p{0.40\\textwidth}p{0.22\\textwidth}rr"
+  align = "p{0.48\\textwidth}p{0.22\\textwidth}rr"
 )
 
 write_tex_table(
@@ -297,7 +416,7 @@ write_tex_table(
   file.path(paths$tables, "wechat_category_examples_en.tex"),
   caption = "Illustrative coding cues and title patterns for the ten detailed labels.",
   label = "tab:wechat-category-examples-en",
-  align = "p{0.26\\textwidth}p{0.18\\textwidth}p{0.32\\textwidth}p{0.42\\textwidth}"
+  align = ">{\\raggedright\\arraybackslash}p{0.24\\textwidth}>{\\raggedright\\arraybackslash}p{0.16\\textwidth}>{\\raggedright\\arraybackslash}p{0.24\\textwidth}>{\\raggedright\\arraybackslash}p{0.30\\textwidth}"
 )
 
 write_tex_table(

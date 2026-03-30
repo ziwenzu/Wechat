@@ -53,7 +53,7 @@ Available fields include:
 - text metadata: `title`
 - existing classifier outputs: `category`, `reason`, `keywords`, `confidence`
 - timing fields: `YEAR`, `DATE`
-- engagement fields: `read_num`, `like_num`, `share_num`, `look_num`, `comment_count`, `collect_num`, `reward_count`
+- engagement fields: `read_num`, `like_num`, `share_num`, `look_num`, `collect_num`, `reward_count`
 
 The old coarse-classification prompt is stored in `code/提示词20251104.txt`.
 

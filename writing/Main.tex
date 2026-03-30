@@ -234,7 +234,7 @@ The key institutional changes are the 2018 and 2020 interface reforms. In Decemb
 
 This study uses the universe of posts published by 329 prefecture-level government WeChat public accounts between 1 January 2015 and 31 December 2024, covering 31 provincial-level units and 4,207,072 posts. The unit of observation for classification is the individual post title. For each post, I record the account identifier, publication date, title, and engagement indicators displayed in the interface, including reads, likes, shares, comments, and \textit{haokan}/\textit{zaikan}. The archived source file also preserves a first-pass category field, a short reason field, a keyword field, and a confidence score from an earlier coarse classification pass; these metadata are used only for title-based normalization and coding, not as outcomes. Because WeChat top-codes some counters at 100,000 (displayed as ``100k+''), I recode those values to 100,001 so they remain ordered while preserving censoring at the upper bound.
 
-To categorize post content at scale, I use an LLM as a text coder rather than as a generator. The production prompt is frozen before full-corpus assignment and uses only title-side inputs: title, account name, province, city, publication date, keywords, and the short reason field. Engagement outcomes, account-level outcome patterns, and reform-period indicators never enter the classification prompt. The coding workflow is built on a fixed ten-category taxonomy. The main text relies on this workflow only for measurement credibility; the SI documents taxonomy construction, coder-audit rules, and validation diagnostics.
+To categorize post content at scale, I use an LLM as a text coder rather than as a generator. The production prompt is set before full-corpus assignment and uses only title-side inputs: title, account name, province, city, publication date, keywords, and the short reason field. Engagement outcomes, account-level outcome patterns, and reform-period indicators never enter the classification prompt. The coding workflow is built on a fixed ten-category taxonomy. The main text relies on this workflow only for measurement credibility; the SI documents taxonomy construction, coder-audit rules, and validation diagnostics.
 
 I validate the LLM labels against a dual-coded gold-standard sample of 2,000 post titles coded under the same codebook and adjudicated to a final reference label. The SI reports the reliability protocol, aggregate validation metrics, class-wise performance, and a family-level confusion matrix. For the main analyses, I collapse the fine-grained labels into three theoretically motivated families: hard propaganda, soft propaganda, and public service. Hard propaganda includes overtly political and disciplinary content; soft propaganda packages regime-favorable messages through development, culture, tourism, and performance narratives; public service covers instrumental governance content such as procedures, welfare, health, traffic, weather, and emergency guidance. State-governance categories remain in the data for balance checks and appendix material but are not the paper's main theoretical families.
 
@@ -287,8 +287,6 @@ The broader implication is that digital authoritarian control works partly by st
 
 \section{WeChat Title Data and Classification Validation \label{app:wechat}}
 
-\subsection{Corpus and Coding Inputs \label{app:wechat-corpus}}
-
 This section documents the title-based WeChat classification pipeline used in the main analyses. The cleaned corpus covers all posts published by 329 prefecture-level government WeChat public accounts between 1 January 2015 and 31 December 2024. The key measurement constraint is that the archived source file preserves post titles consistently across the full nationwide collection but does not preserve article bodies in the current working archive. The unit of text classification is therefore the individual post title. In addition to the title itself, the working archive preserves auxiliary text-side cues such as a short keyword field, a short reason field, and a confidence score. These metadata are used only as classification inputs. Engagement outcomes such as reads, likes, shares, and \textit{zaikan} never enter the classification prompt.
 
 \subsection{Taxonomy Construction and Discovery Review \label{app:wechat-discovery}}
@@ -297,7 +295,7 @@ The final taxonomy fixes ten mutually exclusive detailed labels and four higher-
 
 \input{../tables/wechat_taxonomy_summary_en.tex}
 
-The codebook was frozen after a 400-title discovery review carried out with experienced media practitioners to surface both common labels and difficult boundary cases. As Table~\ref{tab:wechat-discovery-design} shows, the first round balanced across five time bins and the ten cleaned labels, while the second round concentrated on short or low-information titles, low-confidence titles, mixed-domain titles, and adjacent boundary cases.
+The codebook was finalized after a 400-title discovery review carried out with experienced media practitioners to surface both common labels and difficult boundary cases. As Table~\ref{tab:wechat-discovery-design} shows, the first round balanced across five time bins and the ten cleaned labels, while the second round concentrated on short or low-information titles, low-confidence titles, mixed-domain titles, and adjacent boundary cases.
 
 \input{../tables/wechat_discovery_design.tex}
 
@@ -315,11 +313,11 @@ The validation audit drew 2,000 titles with sampling probabilities proportional 
 
 Two independent coders then assigned each title one and only one primary label and the corresponding higher-order family. The operative rule was to code the title's \emph{main communicative purpose}, not the broadest noun phrase or the most politically salient word in isolation. In practice, this meant preferring public-service information over welfare only when the title mainly explained how to do something; preferring leadership and political events over policy disclosure when leaders, meetings, inspections, speeches, or appointments were the center of the title; separating policy disclosure from governance and enforcement by distinguishing rule release from rule enforcement; and separating development performance from city-image content by distinguishing projects and economic upgrading from tourism, festivals, and branding. Coders were blind to model output and to all engagement outcomes. Disagreements were adjudicated to produce the final gold-standard label. The 2,000-title audit sample was held out from prompt design and used only for validation.
 
-\subsection{Frozen LLM Prompt \label{app:wechat-prompt}}
+\subsection{LLM Prompt \label{app:wechat-prompt}}
 
-The full-corpus pass used the OpenAI Responses API with \texttt{model = gpt-5.4} and \texttt{reasoning\_effort = low} under a deterministic single-label instruction. The admissible Chinese primary labels were \cntxt{意识形态与宣传教育}, \cntxt{时政与领导活动}, \cntxt{公共服务信息}, \cntxt{社会保障与公共福利}, \cntxt{应急管理与风险沟通}, \cntxt{政策与政务公开}, \cntxt{社会治理与执法通报}, \cntxt{群众动员与社会参与}, \cntxt{经济与发展建设}, and \cntxt{城市形象与文化活动}. The production prompt was frozen before large-scale assignment and used for both the corpus pass and the validation audit. The prompt was:
+The full-corpus pass used OpenAI with \texttt{model = gpt-5.4} and \texttt{reasoning\_effort = low} under a deterministic single-label instruction. The admissible Chinese primary labels were \cntxt{意识形态与宣传教育}, \cntxt{时政与领导活动}, \cntxt{公共服务信息}, \cntxt{社会保障与公共福利}, \cntxt{应急管理与风险沟通}, \cntxt{政策与政务公开}, \cntxt{社会治理与执法通报}, \cntxt{群众动员与社会参与}, \cntxt{经济与发展建设}, and \cntxt{城市形象与文化活动}. The production prompt was set before large-scale assignment and used for both the corpus pass and the validation audit. The prompt was:
 
-\begin{tcolorbox}[colback=white,title={Frozen prompt used for title-based coding}]
+\begin{tcolorbox}[colback=white,title={Prompt used for title-based coding}]
 \scriptsize
 \texttt{You are a Chinese political-communication annotator.}\par
 \texttt{Task: classify a local-government WeChat post into a fixed ten-label taxonomy.}\par
@@ -344,7 +342,7 @@ The full-corpus pass used the OpenAI Responses API with \texttt{model = gpt-5.4}
 \texttt{reason = \{reason\}}\par
 \end{tcolorbox}
 
-There was no fine-tuning stage and no supervised training split in the machine-learning sense. The discovery sample was used to freeze the codebook and prompt, after which the 2,000-title coder audit was held out for validation.
+There was no fine-tuning stage and no supervised training split in the machine-learning sense. The discovery sample was used to finalize the codebook and prompt, after which the 2,000-title coder audit was held out for validation.
 
 \subsection{Validation Results \label{app:wechat-validation}}
 
@@ -352,7 +350,7 @@ Table~\ref{tab:wechat-annotation-reliability-pretty} reports the reliability of 
 
 \input{../tables/wechat_annotation_reliability_pretty.tex}
 
-Against the adjudicated gold-standard labels, the frozen LLM reaches 0.8150 accuracy and 0.7955 macro F1 on the ten-label task. At the family level, accuracy rises to 0.8755 and macro F1 to 0.8642. Table~\ref{tab:wechat-validation-overall-summary-pretty} reports both sets of overall validation metrics together. This higher family-level performance is substantively important because the paper's theory-facing analyses are conducted primarily at the family level.
+Against the adjudicated gold-standard labels, the LLM reaches 0.8150 accuracy and 0.7955 macro F1 on the ten-label task. At the family level, accuracy rises to 0.8755 and macro F1 to 0.8642. Table~\ref{tab:wechat-validation-overall-summary-pretty} reports both sets of overall validation metrics together. This higher family-level performance is substantively important because the paper's theory-facing analyses are conducted primarily at the family level.
 
 \input{../tables/wechat_validation_overall_summary_pretty.tex}
 
@@ -362,9 +360,17 @@ Table~\ref{tab:wechat-validation-family-by-class-pretty} shows that family-level
 
 \input{../tables/wechat_validation_detailed_by_class_en.tex}
 
+As a complementary face-validity check, Figure~\ref{fig:wechat-keyword-clouds} visualizes family-specific keyword clouds built from the archive's auxiliary keyword field. To keep the clouds informative rather than dominated by generic high-frequency terms, the plotted keywords are weighted by family-level TF-IDF rather than by raw counts alone, after splitting the keyword strings on punctuation delimiters. The resulting semantic neighborhoods line up closely with the intended taxonomy: hard-propaganda titles emphasize political leaders, meetings, and ideological-study language; public-service titles emphasize health, weather, safety, recruitment, and epidemic-response language; state-governance titles emphasize policy release, disclosure, rectification, and participation; and soft-propaganda titles emphasize investment, tourism, culture, projects, and development performance. This figure is not a substitute for the coder audit, but it provides an additional full-corpus check that the higher-order families are semantically coherent.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.95\linewidth]{../figures/wechat_keyword_family_clouds.pdf}
+\caption{Family-Specific Keyword Clouds from the Auxiliary Keyword Field\label{fig:wechat-keyword-clouds}}
+\end{figure}
+
 Figure~\ref{fig:wechat-validation-confusion} visualizes the family-level confusion matrix. Most remaining error is not a collapse of propaganda and service into one undifferentiated category. Instead, it is concentrated in the expected intermediate zone where state-governance titles can be absorbed into adjacent categories. That pattern is consistent with the codebook logic and helps justify using the four families for diagnostics while reserving the three main families for the paper's core theoretical tests.
 
-\begin{figure}[!htbp]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=0.82\linewidth]{../figures/wechat_validation_confusion.pdf}
 \caption{Family-Level Confusion Matrix for the WeChat Classification Audit\label{fig:wechat-validation-confusion}}

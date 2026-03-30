@@ -207,7 +207,7 @@ write_tex_table <- function(
 
   lines <- c(
     "% Auto-generated table.",
-    "\\begin{table}[!htbp]",
+    "\\begin{table}[tbp]",
     "\\centering",
     "\\begingroup",
     "\\footnotesize",
