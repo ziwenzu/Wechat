@@ -417,6 +417,8 @@ Its function is to connect the interface argument back to political content. If 
 
 The results confirm the gradient. The zaikan drop is largest for hard propaganda ($-0.017$, $p < 0.001$), followed by soft propaganda ($-0.014$, $p < 0.001$) and state governance ($-0.009$, $p = 0.006$). For public service content, the zaikan drop is small and not statistically significant ($-0.005$, $p = 0.306$). This ordering is consistent with the theory: citizens are most reluctant to leave socially visible endorsement traces on politically charged content, and most willing to shift approval to the restored low-visibility channel when the expressive risk is highest.
 
+A complementary family-differential local design, reported in SI~\ref{tab:family-diff-local-rd}, compares each propaganda family directly to public service within the same narrow local windows and calendar dates. It reaches the same substantive conclusion: the clearest differential response lies in the visible \textit{zaikan} channel, with the strongest compression for hard propaganda.
+
 Figure~\ref{fig:rdd-2020-family} visualizes the 2020 unbundling separately by content family. The visible zaikan component remains especially compressed for hard and soft propaganda, while public service retains a larger socially legible component. That pattern sharpens the interpretation of H4: what varies across families is not simply total engagement, but the willingness to leave behind a visible endorsement trace.
 
 The figure's function is interpretive. It shows why the family-specific table matters substantively: the core difference across families lies in the composition of approval between visible and less-visible traces, not just in overall clicking.
@@ -782,6 +784,14 @@ Table~\ref{tab:rdd-2020-alt-samples} shows that the 2020 unbundling results are 
 Its function is alternative-explanation control. The table directly addresses the possibility that the 2020 result is really a pandemic-composition artifact rather than an interface effect.
 
 \input{../tables/appendix_rdd_2020_alt_samples.tex}
+
+\subsection{Family-Differential Local Design}
+
+Table~\ref{tab:family-diff-local-rd} replaces the abandoned long-panel DiD idea with a narrower design that remains local to the reform windows. Each row compares one propaganda family to public service only, uses the pair-specific \texttt{rdrobust} bandwidth, applies the corresponding triangular-kernel weights, and absorbs account and calendar-date fixed effects. The identifying comparison is therefore whether the propaganda-service gap shifts discretely at the cutoff within the same narrow local neighborhood of days.
+
+This design is especially useful for the July 2020 reform because it absorbs any day-specific shock shared across families, including CPC-anniversary timing. The results show that the differential family pattern is not driven by a uniformly larger like rebound for propaganda. Instead, the strongest family difference appears in the visible \textit{zaikan} channel: relative to public service, both soft and hard propaganda show significantly more negative \textit{zaikan} shifts, and the hard-propaganda differential is especially large. In 2018, hard propaganda likewise experiences a more negative one-click discontinuity than public service. I interpret this as further evidence that politically risky content is distinguished mainly by stronger avoidance of socially legible endorsement, not by a mechanically larger increase in every low-visibility channel.
+
+\input{../tables/appendix_family_differential_local_rd.tex}
 
 \subsection{Temporal RDD Inference and Clustering}
 
