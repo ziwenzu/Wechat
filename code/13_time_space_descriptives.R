@@ -176,7 +176,9 @@ year_summary <- dt[
     `Posts (M)` = .N / 1e6,
     `Mean Reads` = mean(read_num),
     `Median Reads` = stats::median(read_num),
+    `One-Click (%)` = 100 * mean((like_num + look_num) / read_num),
     `Like/Read (%)` = 100 * mean(like_num / read_num),
+    `Zaikan/Read (%)` = 100 * mean(look_num / read_num),
     `Share/Read (%)` = 100 * mean(share_num / read_num),
     `10w+ (%)` = 100 * mean(read_num >= 100001)
   ),
@@ -194,7 +196,9 @@ write_tex_table(
     `Posts (M)` = 2L,
     `Mean Reads` = 0L,
     `Median Reads` = 0L,
+    `One-Click (%)` = 2L,
     `Like/Read (%)` = 2L,
+    `Zaikan/Read (%)` = 2L,
     `Share/Read (%)` = 2L,
     `10w+ (%)` = 3L
   )
@@ -317,56 +321,6 @@ write_tex_table(
   caption = "Spatial coverage and posting concentration across provinces and prefecture-level cities.",
   label = "tab:main-space-summary",
   digits = c(Value = 0L)
-)
-
-top_provinces <- province_summary[1:15]
-top_provinces[, province_label := factor(province_en, levels = rev(top_provinces$province_en))]
-
-top_cities <- city_summary[order(-mean_reads)][1:15]
-top_cities[, city_label := factor(city_label, levels = rev(top_cities$city_label))]
-
-plot_provinces <- ggplot2::ggplot(
-  top_provinces,
-  ggplot2::aes(x = post_share_pct, y = province_label)
-) +
-  ggplot2::geom_col(fill = "#2563EB", width = 0.7) +
-  ggplot2::labs(
-    x = "Share of corpus (%)",
-    y = NULL,
-    title = "Top provinces by corpus share"
-  ) +
-  ggplot2::theme_minimal(base_size = 10) +
-  ggplot2::theme(
-    plot.title = ggplot2::element_text(face = "bold"),
-    panel.grid.minor = ggplot2::element_blank(),
-    panel.grid.major.y = ggplot2::element_blank()
-  )
-
-plot_cities <- ggplot2::ggplot(
-  top_cities,
-  ggplot2::aes(x = mean_reads, y = city_label)
-) +
-  ggplot2::geom_col(fill = "#059669", width = 0.7) +
-  ggplot2::scale_x_continuous(labels = scales::label_number(big.mark = ",")) +
-  ggplot2::labs(
-    x = "Mean reads",
-    y = NULL,
-    title = "Top cities by mean reads"
-  ) +
-  ggplot2::theme_minimal(base_size = 10) +
-  ggplot2::theme(
-    plot.title = ggplot2::element_text(face = "bold"),
-    panel.grid.minor = ggplot2::element_blank(),
-    panel.grid.major.y = ggplot2::element_blank()
-  )
-
-ggplot2::ggsave(
-  filename = file.path(paths$figures, "main_space_distribution.pdf"),
-  plot = cowplot::plot_grid(plot_provinces, plot_cities, ncol = 2, align = "h"),
-  width = 11,
-  height = 6.8,
-  units = "in",
-  device = "pdf"
 )
 
 memo_lines <- c(

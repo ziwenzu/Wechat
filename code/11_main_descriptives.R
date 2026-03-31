@@ -7,22 +7,22 @@ ensure_packages(c("data.table", "fs"))
 
 paths <- project_paths()
 fs::dir_create(paths$tables, recurse = TRUE)
-memo_dir <- file.path(paths$root, "memo")
-fs::dir_create(memo_dir, recurse = TRUE)
 
 dt <- data.table::as.data.table(readRDS(file.path(paths$data, "wechat_instructional_dataset.rds")))
 
+dt[, one_click_rate := like_rate + look_rate]
+
 label_short <- c(
-  "意识形态与宣传教育" = "Ideological Education",
-  "时政与领导活动" = "Leadership & Political Events",
-  "公共服务信息" = "Public Service Info",
-  "社会保障与公共福利" = "Welfare & Social Protection",
-  "应急管理与风险沟通" = "Emergency & Risk",
-  "政策与政务公开" = "Policy & Disclosure",
-  "社会治理与执法通报" = "Governance & Enforcement",
-  "群众动员与社会参与" = "Mobilization & Participation",
-  "经济与发展建设" = "Economic Development",
-  "城市形象与文化活动" = "City Image & Culture"
+  "\u610f\u8bc6\u5f62\u6001\u4e0e\u5ba3\u4f20\u6559\u80b2" = "Ideological Education",
+  "\u65f6\u653f\u4e0e\u9886\u5bfc\u6d3b\u52a8" = "Leadership & Political Events",
+  "\u516c\u5171\u670d\u52a1\u4fe1\u606f" = "Public Service Info",
+  "\u793e\u4f1a\u4fdd\u969c\u4e0e\u516c\u5171\u798f\u5229" = "Welfare & Social Protection",
+  "\u5e94\u6025\u7ba1\u7406\u4e0e\u98ce\u9669\u6c9f\u901a" = "Emergency & Risk",
+  "\u653f\u7b56\u4e0e\u653f\u52a1\u516c\u5f00" = "Policy & Disclosure",
+  "\u793e\u4f1a\u6cbb\u7406\u4e0e\u6267\u6cd5\u901a\u62a5" = "Governance & Enforcement",
+  "\u7fa4\u4f17\u52a8\u5458\u4e0e\u793e\u4f1a\u53c2\u4e0e" = "Mobilization & Participation",
+  "\u7ecf\u6d4e\u4e0e\u53d1\u5c55\u5efa\u8bbe" = "Economic Development",
+  "\u57ce\u5e02\u5f62\u8c61\u4e0e\u6587\u5316\u6d3b\u52a8" = "City Image & Culture"
 )
 
 family_gloss <- c(
@@ -34,55 +34,59 @@ family_gloss <- c(
 
 family_order <- c("public_service", "soft_propaganda", "state_governance", "hard_propaganda")
 category_order <- c(
-  "公共服务信息",
-  "应急管理与风险沟通",
-  "社会保障与公共福利",
-  "城市形象与文化活动",
-  "经济与发展建设",
-  "社会治理与执法通报",
-  "群众动员与社会参与",
-  "政策与政务公开",
-  "时政与领导活动",
-  "意识形态与宣传教育"
+  "\u516c\u5171\u670d\u52a1\u4fe1\u606f",
+  "\u5e94\u6025\u7ba1\u7406\u4e0e\u98ce\u9669\u6c9f\u901a",
+  "\u793e\u4f1a\u4fdd\u969c\u4e0e\u516c\u5171\u798f\u5229",
+  "\u57ce\u5e02\u5f62\u8c61\u4e0e\u6587\u5316\u6d3b\u52a8",
+  "\u7ecf\u6d4e\u4e0e\u53d1\u5c55\u5efa\u8bbe",
+  "\u793e\u4f1a\u6cbb\u7406\u4e0e\u6267\u6cd5\u901a\u62a5",
+  "\u7fa4\u4f17\u52a8\u5458\u4e0e\u793e\u4f1a\u53c2\u4e0e",
+  "\u653f\u7b56\u4e0e\u653f\u52a1\u516c\u5f00",
+  "\u65f6\u653f\u4e0e\u9886\u5bfc\u6d3b\u52a8",
+  "\u610f\u8bc6\u5f62\u6001\u4e0e\u5ba3\u4f20\u6559\u80b2"
 )
+
+fmt_int <- function(x) format(round(x), big.mark = ",", trim = TRUE, scientific = FALSE)
+fmt_mean_sd <- function(mean_x, sd_x) paste0(fmt_int(mean_x), " (", fmt_int(sd_x), ")")
+
+# ── Overall summary (no Collects) ─────────────────────────────
 
 metric_map <- list(
-  "Reads" = "read_num",
-  "Likes" = "like_num",
+  "Reads"  = "read_num",
+  "Likes"  = "like_num",
   "Shares" = "share_num",
-  "Zaikan" = "look_num",
-  "Collects" = "collect_num"
+  "Zaikan" = "look_num"
 )
 
-fmt_int <- function(x) {
-  format(round(x), big.mark = ",", trim = TRUE, scientific = FALSE)
-}
-
-fmt_mean_sd <- function(mean_x, sd_x) {
-  paste0(fmt_int(mean_x), " (", fmt_int(sd_x), ")")
-}
-
-overall_rows <- data.table::rbindlist(lapply(names(metric_map), function(metric_name) {
-  v <- dt[[metric_map[[metric_name]]]]
+overall_rows <- data.table::rbindlist(lapply(names(metric_map), function(m) {
+  v <- dt[[metric_map[[m]]]]
   data.table::data.table(
-    Variable = metric_name,
-    Min = min(v, na.rm = TRUE),
-    Max = max(v, na.rm = TRUE),
-    Mean = mean(v, na.rm = TRUE),
-    Median = stats::median(v, na.rm = TRUE),
+    Variable = m,
+    Min = min(v, na.rm = TRUE), Max = max(v, na.rm = TRUE),
+    Mean = mean(v, na.rm = TRUE), Median = stats::median(v, na.rm = TRUE),
     SD = stats::sd(v, na.rm = TRUE)
   )
 }))
+
+write_tex_table(
+  overall_rows,
+  file.path(paths$tables, "main_descriptive_overall_stats.tex"),
+  caption = "Overall descriptive statistics for article-level engagement variables.",
+  label = "tab:main-descriptive-overall-stats",
+  digits = c(Min = 0L, Max = 0L, Mean = 0L, Median = 0L, SD = 0L)
+)
+
+# ── Family-level (no Collects, includes H1 reads ranking) ─────
 
 family_table <- dt[
   ,
   .(
     `Posts (M)` = .N / 1e6,
-    `Reads M (SD)` = fmt_mean_sd(mean(read_num), stats::sd(read_num)),
+    `Mean Reads` = mean(read_num),
+    `Median Reads` = as.double(stats::median(read_num)),
     `Likes M (SD)` = fmt_mean_sd(mean(like_num), stats::sd(like_num)),
     `Shares M (SD)` = fmt_mean_sd(mean(share_num), stats::sd(share_num)),
-    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num)),
-    `Collects M (SD)` = fmt_mean_sd(mean(collect_num), stats::sd(collect_num))
+    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num))
   ),
   by = content_family
 ]
@@ -90,15 +94,19 @@ family_table[, Group := unname(family_gloss[content_family])]
 family_table[, Group := factor(Group, levels = unname(family_gloss[family_order]))]
 data.table::setorder(family_table, Group)
 family_table[, Group := as.character(Group)]
-family_table <- family_table[, .(
-  Group,
-  `Posts (M)`,
-  `Reads M (SD)`,
-  `Likes M (SD)`,
-  `Shares M (SD)`,
-  `Zaikan M (SD)`,
-  `Collects M (SD)`
-)]
+family_table <- family_table[, .(Group, `Posts (M)`, `Mean Reads`, `Median Reads`,
+                                 `Likes M (SD)`, `Shares M (SD)`, `Zaikan M (SD)`)]
+
+write_tex_table(
+  family_table,
+  file.path(paths$tables, "main_descriptive_by_family.tex"),
+  caption = "Family-level descriptive statistics. Mean and median reads support H1: public service content attracts more routine consumption than propaganda.",
+  label = "tab:main-descriptive-by-family",
+  digits = c(`Posts (M)` = 2L, `Mean Reads` = 0L, `Median Reads` = 0L),
+  align = "lrrrrrr"
+)
+
+# ── Category-level (no Collects) ──────────────────────────────
 
 category_table <- dt[
   ,
@@ -107,8 +115,7 @@ category_table <- dt[
     `Reads M (SD)` = fmt_mean_sd(mean(read_num), stats::sd(read_num)),
     `Likes M (SD)` = fmt_mean_sd(mean(like_num), stats::sd(like_num)),
     `Shares M (SD)` = fmt_mean_sd(mean(share_num), stats::sd(share_num)),
-    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num)),
-    `Collects M (SD)` = fmt_mean_sd(mean(collect_num), stats::sd(collect_num))
+    `Zaikan M (SD)` = fmt_mean_sd(mean(look_num), stats::sd(look_num))
   ),
   by = .(category, content_family)
 ]
@@ -116,71 +123,53 @@ category_table[, Family := unname(family_gloss[content_family])]
 category_table[, Category := unname(label_short[category])]
 category_table[, category := factor(category, levels = category_order)]
 data.table::setorder(category_table, category)
-category_table <- category_table[, .(
-  Category,
-  Family,
-  `Posts (M)`,
-  `Reads M (SD)`,
-  `Likes M (SD)`,
-  `Shares M (SD)`,
-  `Zaikan M (SD)`,
-  `Collects M (SD)`
-)]
-
-family_mean_reads <- dt[, .(mean_reads = mean(read_num)), by = content_family]
-family_mean_reads[, Group := unname(family_gloss[content_family])]
-top_family <- family_mean_reads$Group[which.max(family_mean_reads$mean_reads)]
-
-write_tex_table(
-  overall_rows,
-  file.path(paths$tables, "main_descriptive_overall_stats.tex"),
-  caption = "Overall descriptive statistics for the main article-level engagement variables.",
-  label = "tab:main-descriptive-overall-stats",
-  digits = c(Min = 0L, Max = 0L, Mean = 0L, Median = 0L, SD = 0L)
-)
-
-write_tex_table(
-  family_table,
-  file.path(paths$tables, "main_descriptive_by_family.tex"),
-  caption = "Family-level descriptive statistics reported as means with standard deviations in parentheses.",
-  label = "tab:main-descriptive-by-family",
-  digits = c(`Posts (M)` = 2L),
-  align = "lrrrrrr"
-)
+category_table <- category_table[, .(Category, Family, `Posts (M)`,
+                                     `Reads M (SD)`, `Likes M (SD)`,
+                                     `Shares M (SD)`, `Zaikan M (SD)`)]
 
 write_tex_table(
   category_table,
   file.path(paths$tables, "main_descriptive_by_category.tex"),
-  caption = "Category-level descriptive statistics reported as means with standard deviations in parentheses.",
+  caption = "Category-level descriptive statistics.",
   label = "tab:main-descriptive-by-category",
   digits = c(`Posts (M)` = 2L),
-  align = "llrrrrrr"
+  align = "llrrrrr"
 )
 
-memo_lines <- c(
-  "# 2026-03-30 Main-Text Descriptives",
-  "",
-  "Outputs:",
-  paste0("- ", file.path(paths$tables, "main_descriptive_overall_stats.tex")),
-  paste0("- ", file.path(paths$tables, "main_descriptive_by_family.tex")),
-  paste0("- ", file.path(paths$tables, "main_descriptive_by_category.tex")),
-  "",
-  "High-level takeaways:",
-  paste0("- Mean reads: ", fmt_int(mean(dt$read_num)), "; median reads: ", fmt_int(stats::median(dt$read_num)),
-         "; sd reads: ", fmt_int(stats::sd(dt$read_num)), "."),
-  paste0("- Mean likes: ", fmt_int(mean(dt$like_num)), "; median likes: ", fmt_int(stats::median(dt$like_num)),
-         "; sd likes: ", fmt_int(stats::sd(dt$like_num)), "."),
-  paste0("- Mean shares: ", fmt_int(mean(dt$share_num)), "; median shares: ", fmt_int(stats::median(dt$share_num)),
-         "; sd shares: ", fmt_int(stats::sd(dt$share_num)), "."),
-  paste0("- Mean zaikan: ", fmt_int(mean(dt$look_num)), "; median zaikan: ", fmt_int(stats::median(dt$look_num)),
-         "; sd zaikan: ", fmt_int(stats::sd(dt$look_num)), "."),
-  paste0("- Mean collects: ", fmt_int(mean(dt$collect_num)), "; median collects: ", fmt_int(stats::median(dt$collect_num)),
-         "; sd collects: ", fmt_int(stats::sd(dt$collect_num)), "."),
-  paste0("- Highest mean reads family: ", top_family, ".")
+# ── Account-level summary ────────────────────────────────────
+
+account_summary <- dt[, .(
+  posts       = .N,
+  mean_reads  = mean(read_num, na.rm = TRUE),
+  mean_like   = mean(like_rate, na.rm = TRUE),
+  mean_look   = mean(look_rate, na.rm = TRUE),
+  mean_share  = mean(share_rate, na.rm = TRUE)
+), by = account_id]
+
+account_stats <- data.table::data.table(
+  Statistic = c(
+    "Accounts", "Posts per account: mean", "Posts per account: median",
+    "Posts per account: SD", "Posts per account: min", "Posts per account: max",
+    "Mean reads per account: mean", "Mean reads per account: SD"
+  ),
+  Value = c(
+    nrow(account_summary),
+    mean(account_summary$posts),
+    stats::median(account_summary$posts),
+    stats::sd(account_summary$posts),
+    min(account_summary$posts),
+    max(account_summary$posts),
+    mean(account_summary$mean_reads),
+    stats::sd(account_summary$mean_reads)
+  )
 )
 
-writeLines(
-  memo_lines,
-  con = file.path(memo_dir, "2026-03-30_main_descriptives.md"),
-  useBytes = TRUE
+write_tex_table(
+  account_stats,
+  file.path(paths$tables, "main_descriptive_account_level.tex"),
+  caption = "Account-level summary statistics for the 329 prefecture-level government WeChat accounts.",
+  label = "tab:main-descriptive-account",
+  digits = c(Value = 0L)
 )
+
+message("Descriptive tables saved.")

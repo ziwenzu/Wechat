@@ -46,44 +46,6 @@ agg_daily <- function(sub, running_var) {
 daily_2018 <- agg_daily(art_2018, "days_from_2018")
 daily_2020 <- agg_daily(art_2020, "days_from_2020")
 
-# ── H1: Attention and Utility ─────────────────────────────────
-# Public service should attract more reads than propaganda.
-
-message("=== H1: Attention and Utility ===")
-
-h1_dt <- dt[content_family %in% names(family_gloss), .(
-  mean_reads = mean(read_num, na.rm = TRUE),
-  median_reads = as.double(stats::median(read_num, na.rm = TRUE)),
-  n = .N
-), by = .(Family = unname(family_gloss[content_family]))]
-data.table::setorder(h1_dt, -mean_reads)
-
-write_tex_table(
-  h1_dt,
-  file.path(paths$tables, "h1_reads_by_family.tex"),
-  caption = "Mean and median article reads by content family (H1). Public service content attracts more routine consumption than propaganda.",
-  label = "tab:h1-reads",
-  digits = c(mean_reads = 0L, median_reads = 0L, n = 0L)
-)
-
-h1_test <- stats::lm(read_num ~ relevel(factor(content_family), ref = "hard_propaganda"),
-                      data = dt[content_family %in% names(family_gloss)])
-h1_coefs <- summary(h1_test)$coefficients
-h1_rows <- data.table::data.table(
-  Comparison = sub(".*\\)", "", rownames(h1_coefs)[-1]),
-  Difference = h1_coefs[-1, 1],
-  SE         = h1_coefs[-1, 2],
-  `p-value`  = h1_coefs[-1, 4]
-)
-
-write_tex_table(
-  h1_rows,
-  file.path(paths$tables, "h1_reads_test.tex"),
-  caption = "OLS differences in mean reads relative to hard propaganda (H1).",
-  label = "tab:h1-reads-test",
-  digits = c(Difference = 0L, SE = 0L, `p-value` = 3L)
-)
-
 # ── Estimation: article-level rdrobust, clustered at account ──
 
 run_rdd <- function(y, x, cluster = NULL, p = 1, h = NULL, label = "") {
@@ -627,45 +589,153 @@ save_unbundling_by_family(art_2020, "rdd_2020_unbundling_by_family.pdf")
 
 message("=== McCrary density plots ===")
 
-mccrary_window <- 365L
+mccrary_window <- 30L
+mccrary_plot_bin <- 2
 
+# Plotting logic follows the original rdd::DCdensity implementation so the
+# output matches the standard McCrary-style density plot.
 mccrary_density <- function(x, c = 0, bin = NULL, bw = NULL) {
-  x <- x[is.finite(x)]
+  x <- x[stats::complete.cases(x)]
   n <- length(x)
-  if (is.null(bin)) bin <- 2 * sd(x) * n^(-0.5)
-  breaks_l <- rev(seq(c, min(x) - bin, by = -bin))
-  breaks_r <- seq(c, max(x) + bin, by = bin)
-  breaks <- sort(unique(c(breaks_l, breaks_r)))
-  mids <- (breaks[-length(breaks)] + breaks[-1]) / 2
-  counts <- as.integer(table(cut(x, breaks = breaks, include.lowest = TRUE)))
-  cellval <- counts / (n * bin)
+  x_sd <- stats::sd(x)
+  x_min <- min(x)
+  x_max <- max(x)
+
+  if (is.null(bin)) bin <- 2 * x_sd * n^(-0.5)
+
+  left_edge <- floor((x_min - c) / bin) * bin + bin / 2 + c
+  right_edge <- floor((x_max - c) / bin) * bin + bin / 2 + c
+  n_bins <- floor((x_max - x_min) / bin) + 2L
+
+  bin_num <- round((((floor((x - c) / bin) * bin + bin / 2 + c) - left_edge) / bin) + 1)
+  cellval <- tabulate(bin_num, nbins = n_bins)
+  cellval <- (cellval / n) / bin
+
+  cellmp <- seq_len(n_bins)
+  cellmp <- floor(((left_edge + (cellmp - 1) * bin) - c) / bin) * bin + bin / 2 + c
 
   if (is.null(bw)) {
-    bw <- rddensity::rddensity(x, c = c)$h$left
-    bw <- max(bw, 3 * bin)
+    calc_side_bw <- function(side_flag, support_length) {
+      mp_side <- cellmp[side_flag]
+      val_side <- cellval[side_flag]
+      if (length(mp_side) < 5) return(NA_real_)
+
+      fit <- stats::lm(val_side ~ poly(mp_side, degree = 4, raw = TRUE))
+      coefs <- stats::coef(fit)
+      coefs[is.na(coefs)] <- 0
+      coefs <- c(coefs, rep(0, max(0, 5 - length(coefs))))
+      mse4 <- summary(fit)$sigma^2
+      fpp <- 2 * coefs[3] + 6 * coefs[4] * mp_side + 12 * coefs[5] * mp_side * mp_side
+      denom <- sum(fpp * fpp)
+      if (!is.finite(mse4) || !is.finite(denom) || denom <= 0) return(NA_real_)
+      3.348 * (mse4 * support_length / denom)^(1 / 5)
+    }
+
+    hleft <- calc_side_bw(cellmp < c, c - left_edge)
+    hright <- calc_side_bw(cellmp >= c, right_edge - c)
+    bw <- mean(c(hleft, hright), na.rm = TRUE)
+    if (!is.finite(bw) || bw <= 0) bw <- max(3 * bin, x_sd / 4)
   }
 
-  fit_side <- function(mp, cv, side_flag) {
-    idx <- side_flag
-    if (sum(idx) < 4) return(list(grid = numeric(0), fitted = numeric(0)))
-    mp_s <- mp[idx]; cv_s <- cv[idx]
-    grid <- seq(min(mp_s), max(mp_s), length.out = 200)
-    w_mat <- sapply(grid, function(g) {
-      u <- (mp_s - g) / bw
-      k <- ifelse(abs(u) <= 1, 0.75 * (1 - u^2), 0)
-      k / max(sum(k), 1e-10)
-    })
-    fitted <- colSums(w_mat * cv_s)
-    list(grid = grid, fitted = fitted)
+  tri_kernel <- function(dist) {
+    u <- abs(dist / bw)
+    ifelse(u <= 1, 1 - u, 0)
   }
 
-  fl <- fit_side(mids, cellval, mids < c)
-  fr <- fit_side(mids, cellval, mids >= c)
+  fit_side <- function(side_flag) {
+    side_dt <- data.table::data.table(
+      cellmp = cellmp[side_flag],
+      cellval = cellval[side_flag]
+    )
+    side_dt$est <- NA_real_
+    side_dt$lwr <- NA_real_
+    side_dt$upr <- NA_real_
+    if (nrow(side_dt) < 2) return(side_dt)
+
+    for (i in seq_len(nrow(side_dt))) {
+      dist <- side_dt$cellmp - side_dt$cellmp[i]
+      weights <- tri_kernel(dist)
+      if (sum(weights > 0) < 3) next
+
+      fit <- tryCatch(
+        stats::lm(cellval ~ dist,
+                  weights = weights,
+                  data = data.frame(cellval = side_dt$cellval, dist = dist)),
+        error = function(e) NULL
+      )
+      if (is.null(fit)) next
+
+      pred <- tryCatch(
+        stats::predict(fit, interval = "confidence", newdata = data.frame(dist = 0)),
+        error = function(e) NULL
+      )
+      if (is.null(pred)) next
+
+      side_dt$est[i] <- pred[1, 1]
+      side_dt$lwr[i] <- pred[1, 2]
+      side_dt$upr[i] <- pred[1, 3]
+    }
+
+    side_dt
+  }
+
+  d_left <- fit_side(cellmp < c)
+  d_right <- fit_side(cellmp >= c)
+
+  cmp <- cellmp
+  cval <- cellval
+  padzeros <- ceiling(bw / bin)
+  jp <- n_bins + 2 * padzeros
+  if (padzeros >= 1) {
+    cval <- c(rep(0, padzeros), cellval, rep(0, padzeros))
+    cmp <- c(
+      seq(left_edge - padzeros * bin, left_edge - bin, by = bin),
+      cellmp,
+      seq(right_edge + bin, right_edge + padzeros * bin, by = bin)
+    )
+  }
+
+  dist <- cmp - c
+  w_left <- ifelse(1 - abs(dist / bw) > 0, 1 - abs(dist / bw), 0) * as.numeric(cmp < c)
+  w_left <- (w_left / sum(w_left)) * jp
+  fhat_left <- stats::predict(stats::lm(cval ~ dist, weights = w_left),
+                              newdata = data.frame(dist = 0))[1]
+
+  w_right <- ifelse(1 - abs(dist / bw) > 0, 1 - abs(dist / bw), 0) * as.numeric(cmp >= c)
+  w_right <- (w_right / sum(w_right)) * jp
+  fhat_right <- stats::predict(stats::lm(cval ~ dist, weights = w_right),
+                               newdata = data.frame(dist = 0))[1]
+
+  theta <- log(fhat_right) - log(fhat_left)
+  se <- sqrt((1 / (n * bw)) * (24 / 5) * ((1 / fhat_right) + (1 / fhat_left)))
+  z_stat <- theta / se
+  p_val <- 2 * stats::pnorm(abs(z_stat), lower.tail = FALSE)
+
+  xlim <- c(c - 2 * x_sd, c + 2 * x_sd)
+  keep_x <- cellmp >= xlim[1] & cellmp <= xlim[2]
+  y_vals <- c(
+    cellval[keep_x],
+    d_left$est[d_left$cellmp >= xlim[1] & d_left$cellmp <= xlim[2]],
+    d_left$lwr[d_left$cellmp >= xlim[1] & d_left$cellmp <= xlim[2]],
+    d_left$upr[d_left$cellmp >= xlim[1] & d_left$cellmp <= xlim[2]],
+    d_right$est[d_right$cellmp >= xlim[1] & d_right$cellmp <= xlim[2]],
+    d_right$lwr[d_right$cellmp >= xlim[1] & d_right$cellmp <= xlim[2]],
+    d_right$upr[d_right$cellmp >= xlim[1] & d_right$cellmp <= xlim[2]]
+  )
+  y_vals <- y_vals[is.finite(y_vals)]
 
   list(
-    cellmp = mids, cellval = cellval,
-    fit_l = fl, fit_r = fr,
-    bw = bw, bin = bin
+    p = p_val,
+    theta = theta,
+    se = se,
+    z = z_stat,
+    bin = bin,
+    bw = bw,
+    points = data.table::data.table(cellmp = cellmp, cellval = cellval),
+    fit_left = d_left,
+    fit_right = d_right,
+    xlim = xlim,
+    ylim = range(y_vals)
   )
 }
 
@@ -673,38 +743,47 @@ save_mccrary_plot <- function(cutoff_date, cutoff_label, filename) {
   x_all <- as.integer(dt$publish_date - cutoff_date)
   x_wide <- x_all[abs(x_all) <= mccrary_window]
 
+  mc <- mccrary_density(x_wide, c = 0, bin = mccrary_plot_bin)
+  point_dt <- mc$points[mc$points$cellval > 0]
   dens_test <- rddensity::rddensity(x_wide, c = 0)
-  pval <- dens_test$test$p_jk
+  p_val <- dens_test$test$p_jk
+  p_lab <- if (is.finite(p_val) && p_val < 0.001) "p < 0.001" else paste0("p = ", formatC(p_val, format = "f", digits = 3))
 
-  mc <- mccrary_density(x_wide, c = 0)
+  grDevices::pdf(file.path(paths$figures, filename), width = 5.2, height = 5.2)
+  old_par <- graphics::par(no.readonly = TRUE)
+  on.exit({
+    graphics::par(old_par)
+    grDevices::dev.off()
+  }, add = TRUE)
 
-  bar_dt <- data.table::data.table(mid = mc$cellmp, height = mc$cellval)
-  fit_l_dt <- data.table::data.table(x = mc$fit_l$grid, y = mc$fit_l$fitted)
-  fit_r_dt <- data.table::data.table(x = mc$fit_r$grid, y = mc$fit_r$fitted)
-
-  g <- ggplot2::ggplot() +
-    ggplot2::geom_col(
-      data = bar_dt,
-      ggplot2::aes(x = mid, y = height),
-      fill = "grey80", color = "grey50", width = mc$bin * 0.9
-    ) +
-    ggplot2::geom_line(data = fit_l_dt, ggplot2::aes(x = x, y = y),
-                       color = "black", linewidth = 1.1) +
-    ggplot2::geom_line(data = fit_r_dt, ggplot2::aes(x = x, y = y),
-                       color = "black", linewidth = 1.1) +
-    ggplot2::geom_vline(xintercept = 0, linetype = "longdash", linewidth = 0.6) +
-    ggplot2::scale_x_continuous(breaks = seq(-mccrary_window, mccrary_window, by = 90)) +
-    ggplot2::labs(
-      x = "Days relative to cutoff",
-      y = "Density",
-      title = paste0(cutoff_label,
-                     ":  p = ", formatC(pval, format = "f", digits = 3))
-    ) +
-    rd_theme +
-    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", size = 11))
-
-  ggplot2::ggsave(file.path(paths$figures, filename), g,
-                  width = 7, height = 4.5, units = "in", device = "pdf")
+  graphics::par(mar = c(4.2, 4.2, 0.8, 1.0))
+  graphics::plot(
+    mc$fit_left$cellmp,
+    mc$fit_left$est,
+    type = "l",
+    lty = 1,
+    lwd = 1.8,
+    col = "black",
+    xlim = c(-mccrary_window, mccrary_window),
+    ylim = mc$ylim,
+    xlab = "Days relative to cutoff",
+    ylab = "Density",
+    main = ""
+  )
+  graphics::lines(mc$fit_left$cellmp, mc$fit_left$lwr, lty = 2, lwd = 0.9, col = "black")
+  graphics::lines(mc$fit_left$cellmp, mc$fit_left$upr, lty = 2, lwd = 0.9, col = "black")
+  graphics::lines(mc$fit_right$cellmp, mc$fit_right$est, lty = 1, lwd = 1.8, col = "black")
+  graphics::lines(mc$fit_right$cellmp, mc$fit_right$lwr, lty = 2, lwd = 0.9, col = "black")
+  graphics::lines(mc$fit_right$cellmp, mc$fit_right$upr, lty = 2, lwd = 0.9, col = "black")
+  graphics::points(point_dt$cellmp, point_dt$cellval, pch = 20, cex = 0.8)
+  usr <- graphics::par("usr")
+  graphics::text(
+    x = usr[1] + 0.04 * (usr[2] - usr[1]),
+    y = usr[4] - 0.04 * (usr[4] - usr[3]),
+    labels = p_lab,
+    adj = c(0, 1),
+    cex = 0.95
+  )
 }
 
 save_mccrary_plot(cutoff_2018, "Dec 2018", "rdd_mccrary_2018.pdf")
