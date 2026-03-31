@@ -25,6 +25,7 @@ family_gloss <- c(
   "state_governance" = "State Governance",
   "hard_propaganda"  = "Hard Propaganda"
 )
+family_order <- c("public_service", "soft_propaganda", "hard_propaganda", "state_governance")
 
 max_window <- 30L
 
@@ -129,17 +130,17 @@ fmt_tex <- function(res, caption, label, filepath) {
 }
 
 fmt_tex(results_2018,
-  "RDD at December 2018: effect of raising one-click visibility (H2). One-Click Rate = Like + Haokan/Zaikan, capturing the same footer button across regimes. Daily aggregation, triangular kernel, MSE-optimal bandwidth, robust bias-corrected inference.",
+  "RDD at December 2018: effect of raising one-click visibility (H2). One-Click Rate = Like + Haokan/Zaikan, capturing the same footer button across regimes. Article-level outcomes, triangular kernel, MSE-optimal bandwidth, robust bias-corrected inference.",
   "tab:rdd-2018",
   file.path(paths$tables, "rdd_2018_main.tex"))
 
 fmt_tex(results_2020,
-  "RDD at July 2020: unbundling low-visibility and high-visibility approval (H3). Like Rate captures restored low-visibility approval; Zaikan Rate captures continued high-visibility endorsement. Daily aggregation, triangular kernel, MSE-optimal bandwidth.",
+  "RDD at July 2020: unbundling low-visibility and high-visibility approval (H3). Like Rate captures restored low-visibility approval; Zaikan Rate captures continued high-visibility endorsement. Article-level outcomes, triangular kernel, MSE-optimal bandwidth.",
   "tab:rdd-2020",
   file.path(paths$tables, "rdd_2020_main.tex"))
 
 fmt_tex(het_results,
-  "Heterogeneous RDD at July 2020 by content family (H4). Political-risk gradient predicts strongest reallocation for hard propaganda.",
+  "Heterogeneous RDD at July 2020 by content family (H4). Article-level outcomes. Political-risk gradient predicts strongest reallocation for hard propaganda.",
   "tab:rdd-2020-het",
   file.path(paths$tables, "rdd_2020_heterogeneity.tex"))
 
@@ -201,7 +202,7 @@ rd_theme <- function(show_legend = FALSE) {
     )
 }
 
-make_rd_data <- function(y, x, yvar_name = "y", binselect = "esmv", p = 1) {
+make_rd_data <- function(y, x, binselect = "esmv", p = 1) {
   out <- rdrobust::rdplot(y = y, x = x, binselect = binselect, p = p,
                           ci = 95, hide = TRUE)
   bins <- data.table::as.data.table(out$vars_bins)
@@ -213,22 +214,40 @@ make_rd_data <- function(y, x, yvar_name = "y", binselect = "esmv", p = 1) {
 save_rd_figure <- function(y, x, y_label, filename, binselect = "esmv", p = 1) {
   rd <- make_rd_data(y, x, binselect = binselect, p = p)
   bins <- rd$bins
-  poly <- rd$poly
+  fit_side <- function(x_sub, y_sub, degree = 1L, side_label = "left") {
+    sub <- data.table::data.table(x = x_sub, y = y_sub)[is.finite(x) & is.finite(y)]
+
+    if (nrow(sub) <= degree) {
+      return(data.table::data.table())
+    }
+
+    fit <- stats::lm(y ~ stats::poly(x, degree, raw = TRUE), data = sub)
+    grid <- data.table::data.table(x = seq(min(sub$x), max(sub$x), length.out = 200))
+    pred <- stats::predict(fit, newdata = grid, se.fit = TRUE)
+    grid[, `:=`(
+      yhat = pred$fit,
+      ci_l = pred$fit - 1.96 * pred$se.fit,
+      ci_r = pred$fit + 1.96 * pred$se.fit,
+      side = side_label
+    )]
+    grid
+  }
+
+  fit_left <- fit_side(x[x < 0], y[x < 0], degree = p, side_label = "left")
+  fit_right <- fit_side(x[x > 0], y[x > 0], degree = p, side_label = "right")
+  fit_all <- data.table::rbindlist(list(fit_left, fit_right), use.names = TRUE, fill = TRUE)
   plot_values <- c(
     bins$rdplot_mean_y,
-    bins$rdplot_ci_l,
-    bins$rdplot_ci_r,
-    poly$rdplot_y
+    fit_all$yhat,
+    fit_all$ci_l,
+    fit_all$ci_r
   )
 
-  poly_left  <- poly[rdplot_x < 0]
-  poly_right <- poly[rdplot_x > 0]
-
   g <- ggplot2::ggplot() +
-    ggplot2::geom_errorbar(
-      data = bins,
-      ggplot2::aes(x = rdplot_mean_x, ymin = rdplot_ci_l, ymax = rdplot_ci_r),
-      width = 0.45, linewidth = 0.35, color = rd_palette$ci
+    ggplot2::geom_ribbon(
+      data = fit_all,
+      ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = side),
+      fill = "#D8D8D8", alpha = 0.45
     ) +
     ggplot2::geom_point(
       data = bins,
@@ -237,13 +256,8 @@ save_rd_figure <- function(y, x, y_label, filename, binselect = "esmv", p = 1) {
       fill = rd_palette$point_fill, color = rd_palette$point_outline
     ) +
     ggplot2::geom_line(
-      data = poly_left,
-      ggplot2::aes(x = rdplot_x, y = rdplot_y),
-      color = rd_palette$ink, linewidth = 0.75, lineend = "round"
-    ) +
-    ggplot2::geom_line(
-      data = poly_right,
-      ggplot2::aes(x = rdplot_x, y = rdplot_y),
+      data = fit_all,
+      ggplot2::aes(x = x, y = yhat, group = side),
       color = rd_palette$ink, linewidth = 0.75, lineend = "round"
     ) +
     ggplot2::geom_vline(
@@ -291,33 +305,36 @@ save_rd_figure(art_2020$share_rate, art_2020$days_from_2020,
 
 message("=== 2020 Unbundling Plot ===")
 
-make_unbundling <- function(art, filename, nbins = 15) {
-  daily <- art[, .(
-    one_click = mean(one_click_rate, na.rm = TRUE),
-    like      = mean(like_rate, na.rm = TRUE),
-    look      = mean(look_rate, na.rm = TRUE),
-    n         = .N
-  ), by = .(x = days_from_2020)]
+make_unbundling <- function(art, filename, nbins = 15L) {
+  article <- art[, .(
+    x = days_from_2020,
+    one_click = one_click_rate,
+    like = like_rate,
+    look = look_rate
+  )]
 
-  dl <- daily[x < 0]
-  dr <- daily[x >= 0]
-  dr_fit <- daily[x > 0]
+  dl <- article[x < 0]
+  dr <- article[x >= 0]
+  dr_fit <- article[x > 0]
 
   bin_it <- function(sub, yvar, nb) {
     sub <- data.table::copy(sub)
     sub[, y := get(yvar)]
     sub[, bin := cut(x, breaks = nb, labels = FALSE)]
-    sub[, .(bx = mean(x), by = mean(y),
-            ci_l = mean(y) - 1.96 * sd(y) / sqrt(.N),
-            ci_r = mean(y) + 1.96 * sd(y) / sqrt(.N)), by = bin]
+    sub[, {
+      ci_half <- if (.N > 1L) 1.96 * stats::sd(y) / sqrt(.N) else 0
+      .(bx = mean(x), by = mean(y),
+        ci_l = mean(y) - ci_half,
+        ci_r = mean(y) + ci_half)
+    }, by = bin]
   }
 
   fit_it <- function(sub, yvar) {
     sub <- data.table::copy(sub)
     sub[, y := get(yvar)]
-    fit <- lm(y ~ poly(x, 1), data = sub, weights = n)
+    fit <- stats::lm(y ~ stats::poly(x, 1, raw = TRUE), data = sub)
     grid <- data.table::data.table(x = seq(min(sub$x), max(sub$x), length.out = 200))
-    pred <- predict(fit, grid, se.fit = TRUE)
+    pred <- stats::predict(fit, grid, se.fit = TRUE)
     grid[, `:=`(yhat = pred$fit,
                 ci_l = pred$fit - 1.96 * pred$se.fit,
                 ci_r = pred$fit + 1.96 * pred$se.fit)]
@@ -335,20 +352,18 @@ make_unbundling <- function(art, filename, nbins = 15) {
   fit_all <- rbind(fit_l, fit_rl, fit_rz)
 
   ms <- c("Combined" = 1, "Like" = 2, "Zaikan" = 0)
-  plot_values <- c(bins_all$by, bins_all$ci_l, bins_all$ci_r,
-                   fit_all$yhat, fit_all$ci_l, fit_all$ci_r)
-  label_dt <- data.table::rbindlist(list(
-    fit_l[which.min(abs(x + 24))][, .(x = x, y = yhat + 0.0019, metric, vjust = 0)],
-    fit_rl[which.min(abs(x - 23))][, .(x = x, y = yhat + 0.0013, metric, vjust = 0)],
-    fit_rz[which.min(abs(x - 23))][, .(x = x, y = yhat - 0.0010, metric, vjust = 1)]
-  ))
+  plot_values <- c(bins_all$by, fit_all$yhat, fit_all$ci_l, fit_all$ci_r)
+  label_dt <- data.table::data.table(
+    x = c(-25, 25, 25),
+    y = c(0.060, 0.045, 0.030),
+    metric = c("Combined", "Like", "Zaikan")
+  )
 
   g <- ggplot2::ggplot() +
-    ggplot2::geom_errorbar(
-      data = bins_all,
-      ggplot2::aes(x = bx, ymin = ci_l, ymax = ci_r),
-      width = 0.45, linewidth = 0.35, alpha = 0.7,
-      color = rd_palette$ink, show.legend = FALSE
+    ggplot2::geom_ribbon(
+      data = fit_all,
+      ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = metric),
+      fill = "#D8D8D8", alpha = 0.38, show.legend = FALSE
     ) +
     ggplot2::geom_point(
       data = bins_all,
@@ -365,14 +380,14 @@ make_unbundling <- function(art, filename, nbins = 15) {
     ) +
     ggplot2::geom_text(
       data = label_dt,
-      ggplot2::aes(x = x, y = y, label = metric, vjust = vjust),
+      ggplot2::aes(x = x, y = y, label = metric),
       size = 3.2, family = "serif", hjust = 0.5,
       color = rd_palette$ink, show.legend = FALSE
     ) +
     ggplot2::scale_shape_manual(values = ms) +
     ggplot2::scale_x_continuous(
-      breaks = pretty(daily$x, n = 5),
-      limits = range(daily$x),
+      breaks = pretty(article$x, n = 5),
+      limits = range(article$x),
       expand = ggplot2::expansion(mult = c(0.02, 0.02))
     ) +
     ggplot2::scale_y_continuous(
@@ -393,6 +408,197 @@ make_unbundling <- function(art, filename, nbins = 15) {
 }
 
 make_unbundling(art_2020, "rdd_2020_unbundling.pdf")
+
+make_bin_summary <- function(sub, nbins = 10L) {
+  sub <- data.table::copy(sub[is.finite(x) & is.finite(y)])
+
+  if (!nrow(sub)) {
+    return(data.table::data.table())
+  }
+
+  sub[, bin := cut(x, breaks = nbins, labels = FALSE)]
+  sub[!is.na(bin), {
+    ci_half <- if (.N > 1L) 1.96 * stats::sd(y) / sqrt(.N) else 0
+    .(
+      bx = mean(x),
+      by = mean(y),
+      ci_l = mean(y) - ci_half,
+      ci_r = mean(y) + ci_half
+    )
+  }, by = bin]
+}
+
+make_fit_band <- function(sub, degree = 1L, grid_n = 200L) {
+  sub <- data.table::copy(sub[is.finite(x) & is.finite(y)])
+
+  if (!nrow(sub)) {
+    return(data.table::data.table())
+  }
+
+  fit <- stats::lm(y ~ stats::poly(x, degree, raw = TRUE), data = sub)
+  grid <- data.table::data.table(x = seq(min(sub$x), max(sub$x), length.out = grid_n))
+  pred <- stats::predict(fit, newdata = grid, se.fit = TRUE)
+  grid[, `:=`(
+    yhat = pred$fit,
+    ci_l = pred$fit - 1.96 * pred$se.fit,
+    ci_r = pred$fit + 1.96 * pred$se.fit
+  )]
+  grid
+}
+
+facet_family_theme <- function(show_legend = FALSE) {
+  rd_theme(show_legend = show_legend) +
+    ggplot2::theme(
+      strip.background = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(size = 9.5, color = rd_palette$ink),
+      panel.spacing = grid::unit(0.7, "lines")
+    )
+}
+
+save_family_2018_panels <- function(art, filename, nbins = 10L) {
+  plot_dt <- art[content_family %in% family_order, .(
+    family = factor(content_family, levels = family_order, labels = family_gloss[family_order]),
+    x = days_from_2018,
+    y = one_click_rate
+  )]
+
+  bins_all <- plot_dt[, make_bin_summary(.SD, nbins = nbins), by = family]
+  fit_all <- plot_dt[, {
+    left <- make_fit_band(.SD[x < 0])[, side := "left"]
+    right <- make_fit_band(.SD[x > 0])[, side := "right"]
+    data.table::rbindlist(list(left, right), use.names = TRUE, fill = TRUE)
+  }, by = family]
+
+  plot_values <- c(
+    bins_all$by,
+    fit_all$yhat, fit_all$ci_l, fit_all$ci_r
+  )
+
+  g <- ggplot2::ggplot() +
+    ggplot2::geom_ribbon(
+      data = fit_all,
+      ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = side),
+      fill = "#D6D6D6", alpha = 0.45
+    ) +
+    ggplot2::geom_line(
+      data = fit_all,
+      ggplot2::aes(x = x, y = yhat, group = side),
+      color = rd_palette$ink, linewidth = 0.8, lineend = "round"
+    ) +
+    ggplot2::geom_point(
+      data = bins_all,
+      ggplot2::aes(x = bx, y = by),
+      shape = 21, size = 1.95, stroke = 0.4,
+      fill = rd_palette$point_fill, color = rd_palette$point_outline
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0, linetype = "22", linewidth = 0.45, color = rd_palette$cutoff
+    ) +
+    ggplot2::facet_wrap(~family, ncol = 2) +
+    ggplot2::scale_x_continuous(
+      breaks = pretty(plot_dt$x, n = 5),
+      limits = range(plot_dt$x),
+      expand = ggplot2::expansion(mult = c(0.02, 0.02))
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = pretty(range(plot_values, na.rm = TRUE), n = 4),
+      labels = scales::label_percent(accuracy = rd_percent_accuracy(plot_values)),
+      expand = ggplot2::expansion(mult = c(0.03, 0.08))
+    ) +
+    ggplot2::labs(
+      x = "Days relative to cutoff",
+      y = "One-click engagement rate"
+    ) +
+    facet_family_theme()
+
+  ggplot2::ggsave(file.path(paths$figures, filename), g,
+                  width = 7.2, height = 5.8, units = "in",
+                  device = "pdf", bg = "white", useDingbats = FALSE)
+}
+
+save_family_2020_panels <- function(art, filename, nbins = 8L) {
+  panel_dt <- data.table::rbindlist(list(
+    art[content_family %in% family_order & days_from_2020 < 0, .(
+      family = factor(content_family, levels = family_order, labels = family_gloss[family_order]),
+      x = days_from_2020,
+      y = one_click_rate,
+      metric = "Combined"
+    )],
+    art[content_family %in% family_order & days_from_2020 >= 0, .(
+      family = factor(content_family, levels = family_order, labels = family_gloss[family_order]),
+      x = days_from_2020,
+      y = like_rate,
+      metric = "Like"
+    )],
+    art[content_family %in% family_order & days_from_2020 >= 0, .(
+      family = factor(content_family, levels = family_order, labels = family_gloss[family_order]),
+      x = days_from_2020,
+      y = look_rate,
+      metric = "Zaikan"
+    )]
+  ), use.names = TRUE)
+
+  bins_all <- panel_dt[, make_bin_summary(.SD, nbins = nbins), by = .(family, metric)]
+  fit_all <- panel_dt[, make_fit_band(.SD), by = .(family, metric)]
+
+  plot_values <- c(
+    bins_all$by,
+    fit_all$yhat, fit_all$ci_l, fit_all$ci_r
+  )
+
+  fill_map <- c(
+    "Combined" = "#D2D2D2",
+    "Like" = "#E2E2E2",
+    "Zaikan" = "#BEBEBE"
+  )
+  shape_map <- c("Combined" = 1, "Like" = 2, "Zaikan" = 0)
+
+  g <- ggplot2::ggplot() +
+    ggplot2::geom_ribbon(
+      data = fit_all,
+      ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = metric, fill = metric),
+      alpha = 0.28
+    ) +
+    ggplot2::geom_line(
+      data = fit_all,
+      ggplot2::aes(x = x, y = yhat, group = metric),
+      color = rd_palette$ink, linewidth = 0.75, lineend = "round"
+    ) +
+    ggplot2::geom_point(
+      data = bins_all,
+      ggplot2::aes(x = bx, y = by, shape = metric),
+      size = 1.9, stroke = 0.4, color = rd_palette$ink, fill = "white"
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0, linetype = "22", linewidth = 0.45, color = rd_palette$cutoff
+    ) +
+    ggplot2::facet_wrap(~family, ncol = 2) +
+    ggplot2::scale_fill_manual(values = fill_map) +
+    ggplot2::scale_shape_manual(values = shape_map) +
+    ggplot2::scale_x_continuous(
+      breaks = pretty(panel_dt$x, n = 5),
+      limits = range(panel_dt$x),
+      expand = ggplot2::expansion(mult = c(0.02, 0.02))
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = pretty(range(plot_values, na.rm = TRUE), n = 4),
+      labels = scales::label_percent(accuracy = rd_percent_accuracy(plot_values)),
+      expand = ggplot2::expansion(mult = c(0.03, 0.08))
+    ) +
+    ggplot2::guides(fill = "none") +
+    ggplot2::labs(
+      x = "Days relative to cutoff",
+      y = "Engagement rate"
+    ) +
+    facet_family_theme(show_legend = TRUE)
+
+  ggplot2::ggsave(file.path(paths$figures, filename), g,
+                  width = 7.2, height = 5.9, units = "in",
+                  device = "pdf", bg = "white", useDingbats = FALSE)
+}
+
+save_family_2018_panels(art_2018, "rdd_2018_one_click_by_family.pdf")
+save_family_2020_panels(art_2020, "rdd_2020_unbundling_by_family.pdf")
 
 # ── Validity checks ──────────────────────────────────────────
 

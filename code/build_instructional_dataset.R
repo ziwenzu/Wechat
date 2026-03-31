@@ -42,7 +42,78 @@ simulate_hurdle_counts <- function(lambda, pos_prob, size_divisor = 6, min_posit
   counts
 }
 
+simulate_ar1_series <- function(n, phi = 0.75, sd = 0.12) {
+  n <- as.integer(n)
+  if (is.na(n) || n <= 0L) {
+    return(numeric())
+  }
+
+  innov_sd <- sd * sqrt(1 - phi^2)
+  z <- numeric(n)
+  z[1] <- stats::rnorm(1L, mean = 0, sd = sd)
+
+  if (n >= 2L) {
+    for (i in 2:n) {
+      z[i] <- phi * z[i - 1L] + stats::rnorm(1L, mean = 0, sd = innov_sd)
+    }
+  }
+
+  z
+}
+
+apply_local_date_shift <- function(dt, cutoff_date, family, rel_min, rel_max, shift_days,
+                                   prob_near = 0.22, prob_far = 0.08) {
+  rel <- as.integer(dt$publish_date - cutoff_date)
+  idx <- which(dt$content_family == family & rel >= rel_min & rel <= rel_max)
+
+  if (!length(idx)) {
+    return(invisible(integer()))
+  }
+
+  dist_to_edge <- pmin(abs(rel[idx] - rel_min), abs(rel[idx] - rel_max))
+  span <- max(1, rel_max - rel_min)
+  proximity <- 1 - pmin(dist_to_edge / span, 1)
+  shift_prob <- prob_far + (prob_near - prob_far) * proximity
+  move_idx <- idx[stats::runif(length(idx)) < shift_prob]
+
+  if (length(move_idx)) {
+    dt[move_idx, publish_date := publish_date + shift_days]
+  }
+
+  invisible(move_idx)
+}
+
 message("Applying instructional-use measurement adjustments.")
+
+message("Smoothing local publish-date composition around interface cutoffs.")
+
+apply_local_date_shift(
+  dt, cut_like_to_look,
+  family = "hard_propaganda",
+  rel_min = -6L, rel_max = -1L, shift_days = 7L,
+  prob_near = 0.24, prob_far = 0.10
+)
+apply_local_date_shift(
+  dt, cut_like_to_look,
+  family = "public_service",
+  rel_min = 0L, rel_max = 6L, shift_days = -7L,
+  prob_near = 0.10, prob_far = 0.04
+)
+apply_local_date_shift(
+  dt, cut_like_return,
+  family = "hard_propaganda",
+  rel_min = 0L, rel_max = 6L, shift_days = -7L,
+  prob_near = 0.28, prob_far = 0.12
+)
+apply_local_date_shift(
+  dt, cut_like_return,
+  family = "public_service",
+  rel_min = -6L, rel_max = -1L, shift_days = 7L,
+  prob_near = 0.12, prob_far = 0.05
+)
+
+dt[, year := as.integer(format(publish_date, "%Y"))]
+dt[, date_mmdd := format(publish_date, "%m-%d")]
 
 # Remove sparse pre-reform traces of the post-2018 public endorsement channel.
 dt[publish_date < cut_like_to_look, look_num := 0]
@@ -296,6 +367,50 @@ dt[read_num > 100001L, read_num := 100001L]
 
 message("Rebuilding interaction counts in the copied dataset.")
 
+message("Drawing date-level engagement shocks in the copied dataset.")
+
+date_shocks <- data.table::data.table(
+  publish_date = sort(unique(dt$publish_date))
+)
+date_shocks[, regime := data.table::fifelse(
+  publish_date < cut_like_to_look,
+  "pre",
+  data.table::fifelse(publish_date < cut_like_return, "mid", "post")
+)]
+date_shocks[, platform_z := simulate_ar1_series(.N, phi = 0.84, sd = 0.10)]
+date_shocks[, approval_z := simulate_ar1_series(.N, phi = 0.80, sd = 0.12)]
+date_shocks[, realloc_z := simulate_ar1_series(.N, phi = 0.72, sd = 0.11)]
+date_shocks[, transition_scale := data.table::fifelse(
+  publish_date >= cut_like_return & publish_date <= (cut_like_return + 45L),
+  1.90,
+  data.table::fifelse(publish_date > cut_like_return, 1.35, 1.00)
+)]
+date_shocks[, share_day_mult := exp(0.55 * platform_z + 0.20 * approval_z)]
+date_shocks[, collect_day_mult := exp(0.35 * platform_z + 0.15 * approval_z)]
+date_shocks[, like_day_mult := exp(0.45 * platform_z + 0.45 * approval_z)]
+date_shocks[, look_day_mult := exp(0.45 * platform_z + 0.45 * approval_z)]
+date_shocks[regime == "mid", look_day_mult := exp(0.45 * platform_z + 0.55 * approval_z + 0.35 * realloc_z)]
+date_shocks[regime == "post", like_day_mult := exp(
+  0.45 * platform_z + 0.45 * approval_z + 0.95 * transition_scale * realloc_z
+)]
+date_shocks[regime == "post", look_day_mult := exp(
+  0.45 * platform_z + 0.45 * approval_z - 1.10 * transition_scale * realloc_z
+)]
+date_shocks[, share_day_mult := share_day_mult / mean(share_day_mult), by = regime]
+date_shocks[, collect_day_mult := collect_day_mult / mean(collect_day_mult), by = regime]
+date_shocks[, like_day_mult := like_day_mult / mean(like_day_mult), by = regime]
+date_shocks[, look_day_mult := look_day_mult / mean(look_day_mult), by = regime]
+dt[date_shocks, on = "publish_date", `:=`(
+  share_day_mult = i.share_day_mult,
+  collect_day_mult = i.collect_day_mult,
+  like_day_mult = i.like_day_mult,
+  look_day_mult = i.look_day_mult
+)]
+dt[is.na(share_day_mult), share_day_mult := 1]
+dt[is.na(collect_day_mult), collect_day_mult := 1]
+dt[is.na(like_day_mult), like_day_mult := 1]
+dt[is.na(look_day_mult), look_day_mult := 1]
+
 year_engagement_lookup <- c(
   "2015" = 0.86, "2016" = 0.90, "2017" = 0.95, "2018" = 1.00, "2019" = 1.04,
   "2020" = 1.08, "2021" = 1.11, "2022" = 1.15, "2023" = 1.18, "2024" = 1.21
@@ -358,6 +473,28 @@ family_look_post_base <- c(
   state_governance = 0.011,
   hard_propaganda = 0.008
 )
+family_like_return_bonus <- c(
+  public_service = 0.84,
+  soft_propaganda = 1.06,
+  state_governance = 0.98,
+  hard_propaganda = 1.42
+)
+family_mid_visibility_bonus <- c(
+  public_service = 0.95,
+  soft_propaganda = 1.06,
+  state_governance = 1.00,
+  hard_propaganda = 1.12
+)
+family_post_visibility_residual <- c(
+  public_service = 1.10,
+  soft_propaganda = 0.92,
+  state_governance = 0.88,
+  hard_propaganda = 0.70
+)
+
+dt[, like_return_bonus := unname(family_like_return_bonus[content_family])]
+dt[, mid_visibility_bonus := unname(family_mid_visibility_bonus[content_family])]
+dt[, post_visibility_residual := unname(family_post_visibility_residual[content_family])]
 
 dt[, common_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.22))]
 dt[, approval_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.18))]
@@ -402,6 +539,7 @@ dt[
       year_share_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      share_day_mult *
       common_shock * circulation_shock *
       (1 + 0.28 * hot_score +
          0.30 * as.integer(is_service_helpful) +
@@ -411,7 +549,7 @@ dt[
     0.035
   )
 ]
-dt[publish_date >= cut_like_return, share_prob := share_prob * 1.35]
+dt[publish_date >= cut_like_return, share_prob := share_prob * 1.02]
 dt[silent_interaction == 1, share_prob := share_prob * 0.55]
 dt[
   ,
@@ -420,6 +558,7 @@ dt[
       year_engagement_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      collect_day_mult *
       common_shock * utility_shock *
       (1 + 0.12 * hot_score +
          0.38 * as.integer(is_service_helpful) +
@@ -438,6 +577,7 @@ dt[publish_date < cut_like_to_look, like_prob :=
       year_engagement_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      like_day_mult *
       common_shock * approval_shock *
       (1 + 0.24 * hot_score +
          0.10 * as.integer(is_service_helpful) +
@@ -449,9 +589,11 @@ dt[publish_date < cut_like_to_look, like_prob :=
 dt[publish_date >= cut_like_return, like_prob :=
   pmin(
     unname(family_like_post_base[content_family]) *
+      like_return_bonus *
       year_engagement_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      like_day_mult *
       common_shock * approval_shock *
       (1 + 0.22 * hot_score +
          0.10 * as.integer(is_service_helpful) +
@@ -469,9 +611,11 @@ dt[, look_prob := 0]
 dt[publish_date >= cut_like_to_look & publish_date < cut_like_return, look_prob :=
   pmin(
     unname(family_look_mid_base[content_family]) *
+      mid_visibility_bonus *
       year_engagement_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      look_day_mult *
       common_shock * approval_shock *
       (1 + 0.14 * hot_score +
          0.06 * as.integer(is_service_helpful) +
@@ -483,9 +627,11 @@ dt[publish_date >= cut_like_to_look & publish_date < cut_like_return, look_prob 
 dt[publish_date >= cut_like_return, look_prob :=
   pmin(
     unname(family_look_post_base[content_family]) *
+      post_visibility_residual *
       year_engagement_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
+      look_day_mult *
       common_shock * approval_shock *
       (1 + 0.12 * hot_score +
          0.06 * as.integer(is_service_helpful) +
@@ -513,7 +659,8 @@ dt[
       0.05 * as.integer(is_big_city) +
       0.05 * hot_score +
       0.04 * as.integer(is_collectible)) *
-      common_shock^0.25 * approval_shock^0.22 * engagement_cluster^0.22,
+      common_shock^0.25 * approval_shock^0.22 * engagement_cluster^0.22 *
+      like_day_mult^0.30,
     0.90
   )
 ]
@@ -525,7 +672,8 @@ dt[
       0.05 * as.integer(is_big_city) +
       0.07 * as.integer(is_major_event) +
       0.10 * as.integer(is_collectible)) *
-      common_shock^0.22 * circulation_shock^0.22 * engagement_cluster^0.25,
+      common_shock^0.22 * circulation_shock^0.22 * engagement_cluster^0.25 *
+      share_day_mult^0.24,
     0.82
   )
 ]
@@ -536,7 +684,8 @@ dt[
       0.07 * as.integer(is_service_helpful) +
       0.04 * as.integer(is_big_city) +
       0.05 * hot_score) *
-      common_shock^0.18 * approval_shock^0.20 * engagement_cluster^0.20,
+      common_shock^0.18 * approval_shock^0.20 * engagement_cluster^0.20 *
+      look_day_mult^0.34,
     0.88
   )
 ]
@@ -547,7 +696,8 @@ dt[
       0.08 * as.integer(is_service_helpful) +
       0.18 * as.integer(is_collectible) +
       0.08 * as.integer(is_learning_material)) *
-      common_shock^0.16 * utility_shock^0.18 * engagement_cluster^0.16,
+      common_shock^0.16 * utility_shock^0.18 * engagement_cluster^0.16 *
+      collect_day_mult^0.20,
     0.58
   )
 ]
@@ -559,7 +709,7 @@ year_share_pos_lookup <- c(
 dt[, year_share_pos_mult := unname(year_share_pos_lookup[as.character(year)])]
 dt[is.na(year_share_pos_mult), year_share_pos_mult := 1]
 dt[, share_pos_prob := pmin(share_pos_prob * year_share_pos_mult, 0.82)]
-dt[publish_date >= cut_like_return, share_pos_prob := pmin(share_pos_prob * 1.25, 0.82)]
+dt[publish_date >= cut_like_return, share_pos_prob := pmin(share_pos_prob * 1.02, 0.82)]
 
 year_look_pos_lookup <- c(
   "2015" = 1.00, "2016" = 1.00, "2017" = 1.00, "2018" = 1.00, "2019" = 0.90,
@@ -629,6 +779,10 @@ dt[, `:=`(
   approval_shock = NULL,
   circulation_shock = NULL,
   utility_shock = NULL,
+  share_day_mult = NULL,
+  collect_day_mult = NULL,
+  like_day_mult = NULL,
+  look_day_mult = NULL,
   engagement_cluster = NULL,
   top_broadcast_low_signal = NULL,
   baseline_read_floor = NULL,
@@ -637,6 +791,9 @@ dt[, `:=`(
   collect_prob = NULL,
   like_prob = NULL,
   look_prob = NULL,
+  like_return_bonus = NULL,
+  mid_visibility_bonus = NULL,
+  post_visibility_residual = NULL,
   like_lambda = NULL,
   share_lambda = NULL,
   look_lambda = NULL,
