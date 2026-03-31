@@ -385,12 +385,12 @@ confusion_plot <- ggplot2::ggplot(
   )
 
 confusion_path <- file.path(paths$figures, "wechat_validation_confusion.pdf")
-grDevices::pdf(confusion_path, width = 7.4, height = 5.6, useDingbats = FALSE)
+open_pdf_figure(confusion_path, width = 7.4, height = 5.6, useDingbats = FALSE)
 print(confusion_plot)
 grDevices::dev.off()
 
 keyword_cloud_path <- file.path(paths$figures, "wechat_keyword_family_clouds.pdf")
-grDevices::pdf(keyword_cloud_path, width = 8.8, height = 6.9, useDingbats = FALSE)
+open_pdf_figure(keyword_cloud_path, width = 8.8, height = 6.9, useDingbats = FALSE)
 print(keyword_cloud_plot)
 grDevices::dev.off()
 

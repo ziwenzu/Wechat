@@ -143,14 +143,13 @@ p <- ggplot2::ggplot(plot_dt, ggplot2::aes(x = year_month, y = value, group = in
 
 output_path <- file.path(paths$figures, "main_engagement_timeseries.pdf")
 
-ggplot2::ggsave(
-  filename = output_path,
-  plot     = p,
-  width    = 9,
-  height   = 8,
-  units    = "in",
-  device   = "pdf",
-  bg       = "white",
+save_figure(
+  path = output_path,
+  plot = p,
+  width = 9,
+  height = 8,
+  units = "in",
+  bg = "white",
   useDingbats = FALSE
 )
 

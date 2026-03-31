@@ -9,5 +9,5 @@ Outputs:
 High-level takeaways:
 - Time coverage runs from 2015 to 2024.
 - Spatial coverage includes 31 provinces and 329 prefecture-level government accounts.
-- Largest province by corpus share: Sichuansheng.
-- Highest-mean-read city: Hangzhou (Zhejiangsheng).
+- Largest province by corpus share: Sichuan.
+- Highest-mean-read city: Hangzhou (Zhejiang).

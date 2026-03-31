@@ -228,14 +228,13 @@ p <- ggplot2::ggplot(
   ) +
   ts_theme
 
-ggplot2::ggsave(
-  filename = file.path(paths$figures, "main_extensive_margin_timeseries.pdf"),
-  plot     = p,
-  width    = 9,
-  height   = 8,
-  units    = "in",
-  device   = "pdf",
-  bg       = "white",
+save_figure(
+  path = file.path(paths$figures, "main_extensive_margin_timeseries.pdf"),
+  plot = p,
+  width = 9,
+  height = 8,
+  units = "in",
+  bg = "white",
   useDingbats = FALSE
 )
 

@@ -80,6 +80,69 @@ ensure_packages <- function(packages) {
   }
 }
 
+validate_figure_path <- function(path, allow_png = FALSE) {
+  ext <- tolower(tools::file_ext(path))
+
+  if (ext == "pdf") {
+    return(path)
+  }
+
+  if (allow_png && ext == "png") {
+    return(path)
+  }
+
+  stop(
+    paste0(
+      "Figure outputs must use .pdf",
+      if (allow_png) " unless allow_png = TRUE is set for map exports" else "",
+      ". Invalid path: ",
+      path
+    ),
+    call. = FALSE
+  )
+}
+
+save_figure <- function(
+  path,
+  plot,
+  width,
+  height,
+  units = "in",
+  bg = "white",
+  useDingbats = FALSE,
+  allow_png = FALSE,
+  ...
+) {
+  path <- validate_figure_path(path, allow_png = allow_png)
+  ext <- tolower(tools::file_ext(path))
+
+  args <- list(
+    filename = path,
+    plot = plot,
+    width = width,
+    height = height,
+    units = units,
+    bg = bg,
+    ...
+  )
+
+  if (ext == "pdf") {
+    args$device <- "pdf"
+    args$useDingbats <- useDingbats
+  } else {
+    args$device <- "png"
+  }
+
+  do.call(ggplot2::ggsave, args)
+  invisible(path)
+}
+
+open_pdf_figure <- function(path, width, height, useDingbats = FALSE, ...) {
+  path <- validate_figure_path(path, allow_png = FALSE)
+  grDevices::pdf(path, width = width, height = height, useDingbats = useDingbats, ...)
+  invisible(path)
+}
+
 coalesce_zero <- function(x) {
   x <- as.numeric(x)
   x[is.na(x)] <- 0

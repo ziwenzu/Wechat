@@ -259,13 +259,12 @@ plot_time_reads <- ggplot2::ggplot(
     panel.grid.minor = ggplot2::element_blank()
   )
 
-ggplot2::ggsave(
-  filename = file.path(paths$figures, "main_time_trends.pdf"),
+save_figure(
+  path = file.path(paths$figures, "main_time_trends.pdf"),
   plot = cowplot::plot_grid(plot_time_share, plot_time_reads, ncol = 1, align = "v", rel_heights = c(1, 1)),
   width = 8.5,
   height = 8.5,
-  units = "in",
-  device = "pdf"
+  units = "in"
 )
 
 province_summary <- dt[
