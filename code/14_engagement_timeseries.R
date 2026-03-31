@@ -41,6 +41,20 @@ metric_levels <- c(
   "Haokan / Zaikan Rate (renamed Mar 2019)",
   "Share / Forward Rate"
 )
+
+ts_theme <- ggplot2::theme_classic(base_size = 11, base_family = "serif") +
+  ggplot2::theme(
+    legend.position = "none",
+    strip.background = ggplot2::element_blank(),
+    strip.text = ggplot2::element_text(size = 10.5, face = "plain", margin = ggplot2::margin(b = 3)),
+    panel.spacing = ggplot2::unit(1, "lines"),
+    axis.text = ggplot2::element_text(size = 9.5, color = "#303030"),
+    axis.title = ggplot2::element_text(size = 10.5, color = "#1A1A1A"),
+    axis.line = ggplot2::element_line(linewidth = 0.4, color = "#303030"),
+    axis.ticks = ggplot2::element_line(linewidth = 0.4, color = "#303030"),
+    axis.ticks.length = ggplot2::unit(0.12, "cm"),
+    plot.margin = ggplot2::margin(t = 4, r = 10, b = 8, l = 8)
+  )
 monthly_look[, metric := "Haokan / Zaikan Rate (renamed Mar 2019)"]
 monthly_share[, metric := "Share / Forward Rate"]
 
@@ -78,35 +92,29 @@ arrow_df <- data.frame(
   stringsAsFactors = FALSE
 )
 
-metric_colors <- c(
-  "Like Rate (Dianzan)"                      = "#2563EB",
-  "Haokan / Zaikan Rate (renamed Mar 2019)"  = "#059669",
-  "Share / Forward Rate"                     = "#D97706"
-)
-
 year_breaks <- seq(
   from = as.Date("2014-01-01"),
   to   = as.Date("2025-01-01"),
   by   = "1 year"
 )
 
-p <- ggplot2::ggplot(plot_dt, ggplot2::aes(x = year_month, y = value, color = metric, group = interaction(metric, segment))) +
-  ggplot2::geom_line(linewidth = 0.7) +
+p <- ggplot2::ggplot(plot_dt, ggplot2::aes(x = year_month, y = value, group = interaction(metric, segment))) +
+  ggplot2::geom_line(linewidth = 0.65, color = "#1F1F1F", lineend = "round") +
   ggplot2::geom_vline(
     xintercept = vline_dates,
-    linetype   = "dashed",
-    color      = "grey40",
-    linewidth  = 0.5
+    linetype   = "22",
+    color      = "grey45",
+    linewidth  = 0.45
   ) +
   ggplot2::geom_text(
     data        = label_df,
     ggplot2::aes(x = x, y = y, label = label),
     inherit.aes = FALSE,
     hjust       = 0.5,
-    size        = 3.2,
+    size        = 3.1,
     color       = "grey20",
     lineheight  = 0.9,
-    fontface    = "bold"
+    family      = "serif"
   ) +
   ggplot2::geom_segment(
     data        = arrow_df,
@@ -117,25 +125,17 @@ p <- ggplot2::ggplot(plot_dt, ggplot2::aes(x = year_month, y = value, color = me
     arrow       = grid::arrow(length = grid::unit(0.12, "cm"), type = "closed")
   ) +
   ggplot2::facet_wrap(~metric, scales = "free_y", ncol = 1) +
-  ggplot2::scale_color_manual(values = metric_colors) +
   ggplot2::scale_x_date(
     breaks = year_breaks,
     labels = scales::label_date("%Y"),
     expand = ggplot2::expansion(mult = c(0.02, 0.02))
   ) +
-  ggplot2::scale_y_continuous(labels = scales::label_percent(accuracy = 0.01)) +
+  ggplot2::scale_y_continuous(labels = scales::label_percent(accuracy = 0.1)) +
   ggplot2::labs(
     x = NULL,
     y = "Monthly mean engagement rate (metric / reads)"
   ) +
-  ggplot2::theme_minimal(base_size = 10) +
-  ggplot2::theme(
-    legend.position  = "none",
-    strip.text       = ggplot2::element_text(face = "bold", size = 10),
-    panel.grid.minor = ggplot2::element_blank(),
-    panel.spacing    = ggplot2::unit(0.8, "lines"),
-    plot.margin      = ggplot2::margin(t = 4, r = 8, b = 8, l = 8)
-  )
+  ts_theme
 
 output_path <- file.path(paths$figures, "main_engagement_timeseries.pdf")
 
@@ -145,7 +145,9 @@ ggplot2::ggsave(
   width    = 9,
   height   = 8,
   units    = "in",
-  device   = "pdf"
+  device   = "pdf",
+  bg       = "white",
+  useDingbats = FALSE
 )
 
 message("Saved engagement time-series figure to: ", output_path)

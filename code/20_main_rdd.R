@@ -154,9 +154,9 @@ rd_palette <- list(
   ci = "#BBBBBB",
   point_fill = "white",
   point_outline = "#3A3A3A",
-  combined = "#6B7280",
-  like = "#355C7D",
-  zaikan = "#5A7D5A"
+  combined = "#7A7A7A",
+  like = "#1A1A1A",
+  zaikan = "#5A5A5A"
 )
 
 rd_percent_accuracy <- function(values) {
@@ -186,9 +186,7 @@ rd_percent_accuracy <- function(values) {
 rd_theme <- function(show_legend = FALSE) {
   ggplot2::theme_classic(base_size = 11, base_family = "serif") +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(
-        size = 11, face = "plain", hjust = 0, margin = ggplot2::margin(b = 6)
-      ),
+      plot.title = ggplot2::element_blank(),
       axis.title = ggplot2::element_text(size = 10.5, color = rd_palette$ink),
       axis.text = ggplot2::element_text(size = 9.5, color = rd_palette$axis),
       axis.line = ggplot2::element_line(linewidth = 0.4, color = rd_palette$axis),
@@ -212,8 +210,7 @@ make_rd_data <- function(y, x, yvar_name = "y", binselect = "esmv", p = 1) {
   list(bins = bins, poly = poly)
 }
 
-save_rd_figure <- function(y, x, y_label, title_text, filename,
-                           binselect = "esmv", p = 1) {
+save_rd_figure <- function(y, x, y_label, filename, binselect = "esmv", p = 1) {
   rd <- make_rd_data(y, x, binselect = binselect, p = p)
   bins <- rd$bins
   poly <- rd$poly
@@ -224,14 +221,14 @@ save_rd_figure <- function(y, x, y_label, title_text, filename,
     poly$rdplot_y
   )
 
-  poly_left  <- poly[side == "left"]
-  poly_right <- poly[side == "right"]
+  poly_left  <- poly[rdplot_x < 0]
+  poly_right <- poly[rdplot_x > 0]
 
   g <- ggplot2::ggplot() +
     ggplot2::geom_errorbar(
       data = bins,
       ggplot2::aes(x = rdplot_mean_x, ymin = rdplot_ci_l, ymax = rdplot_ci_r),
-      width = 0, linewidth = 0.35, color = rd_palette$ci
+      width = 0.45, linewidth = 0.35, color = rd_palette$ci
     ) +
     ggplot2::geom_point(
       data = bins,
@@ -263,8 +260,7 @@ save_rd_figure <- function(y, x, y_label, title_text, filename,
     ) +
     ggplot2::labs(
       x = "Days relative to cutoff",
-      y = y_label,
-      title = title_text
+      y = y_label
     ) +
     rd_theme()
 
@@ -275,27 +271,22 @@ save_rd_figure <- function(y, x, y_label, title_text, filename,
 
 save_rd_figure(art_2018$one_click_rate, art_2018$days_from_2018,
                "One-Click Engagement Rate",
-               "2018 Visibility Shock: One-Click Engagement",
                "rdd_2018_one_click_rate.pdf")
 
 save_rd_figure(art_2018$share_rate, art_2018$days_from_2018,
                "Share/Forward Rate",
-               "2018 Visibility Shock: Shares",
                "rdd_2018_share_rate.pdf")
 
 save_rd_figure(art_2020$one_click_rate, art_2020$days_from_2020,
                "One-Click Rate (Like + Zaikan)",
-               "2020 Unbundling: Total One-Click",
                "rdd_2020_one_click_rate.pdf")
 
 save_rd_figure(art_2020$look_rate, art_2020$days_from_2020,
                "Zaikan Rate (high-visibility)",
-               "2020 Unbundling: Zaikan",
                "rdd_2020_look_rate.pdf")
 
 save_rd_figure(art_2020$share_rate, art_2020$days_from_2020,
                "Share/Forward Rate",
-               "2020 Unbundling: Shares",
                "rdd_2020_share_rate.pdf")
 
 message("=== 2020 Unbundling Plot ===")
@@ -310,6 +301,7 @@ make_unbundling <- function(art, filename, nbins = 15) {
 
   dl <- daily[x < 0]
   dr <- daily[x >= 0]
+  dr_fit <- daily[x > 0]
 
   bin_it <- function(sub, yvar, nb) {
     sub <- data.table::copy(sub)
@@ -338,63 +330,60 @@ make_unbundling <- function(art, filename, nbins = 15) {
   bins_all <- rbind(bins_l, bins_rl, bins_rz)
 
   fit_l  <- fit_it(dl, "one_click")[, metric := "Combined"]
-  fit_rl <- fit_it(dr, "like")[, metric := "Like"]
-  fit_rz <- fit_it(dr, "look")[, metric := "Zaikan"]
+  fit_rl <- fit_it(dr_fit, "like")[, metric := "Like"]
+  fit_rz <- fit_it(dr_fit, "look")[, metric := "Zaikan"]
   fit_all <- rbind(fit_l, fit_rl, fit_rz)
 
-  mc <- c("Combined" = rd_palette$combined,
-          "Like" = rd_palette$like,
-          "Zaikan" = rd_palette$zaikan)
-  ms <- c("Combined" = 21, "Like" = 24, "Zaikan" = 22)
+  ms <- c("Combined" = 1, "Like" = 2, "Zaikan" = 0)
   plot_values <- c(bins_all$by, bins_all$ci_l, bins_all$ci_r,
                    fit_all$yhat, fit_all$ci_l, fit_all$ci_r)
   label_dt <- data.table::rbindlist(list(
-    fit_l[which.min(x)][, .(x = x + 0.8, y = yhat, metric, hjust = 0)],
-    fit_rl[which.max(x)][, .(x = x + 1.8, y = yhat, metric, hjust = 0)],
-    fit_rz[which.max(x)][, .(x = x + 1.8, y = yhat, metric, hjust = 0)]
+    fit_l[which.min(abs(x + 24))][, .(x = x, y = yhat + 0.0019, metric, vjust = 0)],
+    fit_rl[which.min(abs(x - 23))][, .(x = x, y = yhat + 0.0013, metric, vjust = 0)],
+    fit_rz[which.min(abs(x - 23))][, .(x = x, y = yhat - 0.0010, metric, vjust = 1)]
   ))
 
   g <- ggplot2::ggplot() +
     ggplot2::geom_errorbar(
       data = bins_all,
-      ggplot2::aes(x = bx, ymin = ci_l, ymax = ci_r, color = metric),
-      width = 0, linewidth = 0.35, alpha = 0.7, show.legend = FALSE
+      ggplot2::aes(x = bx, ymin = ci_l, ymax = ci_r),
+      width = 0.45, linewidth = 0.35, alpha = 0.7,
+      color = rd_palette$ink, show.legend = FALSE
     ) +
     ggplot2::geom_point(
       data = bins_all,
-      ggplot2::aes(x = bx, y = by, fill = metric, shape = metric),
-      size = 2.05, stroke = 0.35, color = "white", alpha = 0.95
+      ggplot2::aes(x = bx, y = by, shape = metric),
+      size = 2.1, stroke = 0.4, color = rd_palette$ink, alpha = 0.95
     ) +
     ggplot2::geom_line(
       data = fit_all,
-      ggplot2::aes(x = x, y = yhat, color = metric),
-      linewidth = 0.8, lineend = "round"
+      ggplot2::aes(x = x, y = yhat, group = metric),
+      linewidth = 0.8, lineend = "round", color = rd_palette$ink
     ) +
     ggplot2::geom_vline(
       xintercept = 0, linetype = "22", linewidth = 0.45, color = rd_palette$cutoff
     ) +
     ggplot2::geom_text(
       data = label_dt,
-      ggplot2::aes(x = x, y = y, label = metric, color = metric, hjust = hjust),
-      size = 3.2, family = "serif", vjust = 0.5, show.legend = FALSE
+      ggplot2::aes(x = x, y = y, label = metric, vjust = vjust),
+      size = 3.2, family = "serif", hjust = 0.5,
+      color = rd_palette$ink, show.legend = FALSE
     ) +
-    ggplot2::scale_color_manual(values = mc) +
-    ggplot2::scale_fill_manual(values = mc) +
     ggplot2::scale_shape_manual(values = ms) +
     ggplot2::scale_x_continuous(
       breaks = pretty(daily$x, n = 5),
-      expand = ggplot2::expansion(mult = c(0.1, 0.14))
+      limits = range(daily$x),
+      expand = ggplot2::expansion(mult = c(0.02, 0.02))
     ) +
     ggplot2::scale_y_continuous(
       breaks = pretty(range(plot_values, na.rm = TRUE), n = 4),
       labels = scales::label_percent(accuracy = rd_percent_accuracy(plot_values)),
       expand = ggplot2::expansion(mult = c(0.03, 0.08))
     ) +
-    ggplot2::guides(color = "none", fill = "none", shape = "none") +
+    ggplot2::guides(shape = "none") +
     ggplot2::labs(
       x = "Days relative to cutoff",
-      y = "Engagement rate",
-      title = "2020 Unbundling: Combined vs. Like vs. Zaikan"
+      y = "Engagement rate"
     ) +
     rd_theme()
 
