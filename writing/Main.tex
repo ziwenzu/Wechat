@@ -243,7 +243,30 @@ The paper's measurement logic is therefore theory-driven rather than purely unsu
 
 \section{Research Design}
 
-The paper exploits two sharp interface discontinuities as natural experiments. On December 21, 2018, WeChat 7.0 replaced the article-bottom ``like'' button with ``good-looking'' (\textit{haokan}), bundling low-visibility approval with socially legible recommendation. On July 1, 2020, the ``like'' button was restored alongside \textit{zaikan} and a new ``share'' button, unbundling the two channels. Both changes were platform-wide, simultaneous, and exogenous to individual account or article characteristics.
+The empirical analysis proceeds in two steps. I first document the paper's communication dilemma inside mixed official channels: service content helps sustain routine audience demand but also absorbs a disproportionate share of the attention available in those channels. I then turn to the 2018 and 2020 interface reforms to identify how changes in expressive visibility reshape engagement behavior.
+
+To measure the attention premium of service content, I estimate post-level models that compare articles published by the same account on the same day. Let $i$ index articles, $a$ accounts, and $d$ calendar days. The preferred specification is
+\[
+\log(1+\text{Reads}_{iad}) =
+\beta_{1}\text{Service}_{iad} +
+\beta_{2}\text{SoftProp}_{iad} +
+\alpha_{ad} + \varepsilon_{iad},
+\]
+where $\text{Service}_{iad}$ and $\text{SoftProp}_{iad}$ are indicators for public service and soft propaganda, hard propaganda is the omitted category, and $\alpha_{ad}$ denotes account-day fixed effects. This comparison is intentionally demanding: it holds constant the account, the date, and the same daily channel environment, so the coefficients ask which kinds of posts attract more attention when they compete inside the same official channel-day.
+
+To assess crowding inside the channel, I collapse the data to the account-day and retain only days on which an account publishes both service and propaganda content. I then estimate
+\[
+\log(1+\overline{\text{Reads}}^{P}_{ad}) =
+\theta \text{ServiceShare}_{ad} +
+\lambda \text{StateShare}_{ad} +
+\rho \log(1+\text{Posts}_{ad}) +
+\alpha_{a} + \delta_{d} + u_{ad},
+\]
+where $\overline{\text{Reads}}^{P}_{ad}$ is mean reads per propaganda post, $\text{ServiceShare}_{ad}$ is the share of that day's posts devoted to public service, $\text{StateShare}_{ad}$ is the share devoted to state-governance content, $\alpha_{a}$ are account fixed effects, and $\delta_{d}$ are calendar-date fixed effects. The control for total posts separates composition from simple activity volume, while the state-governance share ensures that the service-share coefficient is not merely picking up substitution from another non-theoretical family. A negative $\theta$ indicates that service-heavy channel days leave less average attention for propaganda.
+
+I do not use an autoregressive specification as the main descriptive design. A weekly lead model can be informative about whether service-heavy weeks are associated with higher subsequent channel traffic, but content mix and expected demand are jointly determined, so dynamic estimates are best treated as suggestive rather than definitive. Standard errors in all descriptive and causal models are clustered at the account level.
+
+For the causal part of the paper, I exploit two sharp interface discontinuities as natural experiments. On December 21, 2018, WeChat 7.0 replaced the article-bottom ``like'' button with ``good-looking'' (\textit{haokan}), bundling low-visibility approval with socially legible recommendation. On July 1, 2020, the ``like'' button was restored alongside \textit{zaikan} and a new ``share'' button, unbundling the two channels. Both changes were platform-wide, simultaneous, and exogenous to individual account or article characteristics.
 
 I estimate sharp regression discontinuity designs centered on each cutoff. The running variable is days relative to the reform date, and the unit of observation is the individual article. All specifications use local linear polynomial estimation with a triangular kernel, MSE-optimal bandwidth selection, and robust bias-corrected confidence intervals following \textcite{CalonicoEtAl2014}. Standard errors are clustered at the account level (329 prefecture-level accounts) to account for within-account correlation.
 
@@ -251,7 +274,7 @@ Because the running variable is discrete at the day level and the article volume
 
 \section{Descriptive Findings}
 
-\subsection{Content, Attention, and Spatial Coverage}
+\subsection{The Communication Dilemma}
 
 Table~\ref{tab:main-descriptive-by-family} reports summary statistics for the four content families. Consistent with H1, public service content attracts substantially more routine consumption than any propaganda category: its mean readership is roughly 3.4 times that of hard propaganda and nearly double that of soft propaganda. This ordering is robust across means and medians, confirming that citizens treat official accounts partly as service-delivery interfaces rather than purely as political outlets.
 
@@ -264,6 +287,22 @@ Table~\ref{tab:main-descriptive-overall-stats} reports article-level summary sta
 Its function is descriptive calibration. The table makes clear how skewed and heterogeneous these counters are, which in turn motivates the paper's emphasis on engagement rates and local discontinuities rather than raw count comparisons alone.
 
 \input{../tables/main_descriptive_overall_stats.tex}
+
+Mean comparisons alone do not yet show whether service content merely appears in larger channels or actually dominates attention inside mixed channels. Table~\ref{tab:main-communication-attention-gap} therefore compares each family's share of posts to its share of reads within the three main theoretical families. Public service accounts for 38.6\% of posts but 60.0\% of reads, an attention premium of 21.4 percentage points. Hard propaganda shows the mirror image: 28.8\% of posts but only 13.1\% of reads. The channel is therefore mixed not only in what it publishes, but also in how audience attention is allocated across content types.
+
+\input{../tables/main_communication_attention_gap.tex}
+
+Table~\ref{tab:main-communication-dilemma-post} sharpens that comparison by moving to within-account-day regressions. Even under the most demanding fixed-effects specification, which compares posts published by the same account on the same day, public service continues to outperform propaganda by a wide margin. Relative to hard propaganda, the public-service coefficient is 0.996, implying roughly 2.7 times as many reads on average, while soft propaganda also performs better than hard propaganda but by less. This ordering is consistent with the claim that service content sustains attention by providing immediate utility, whereas hard propaganda is the least competitive form of content inside the same channel.
+
+\input{../tables/main_communication_dilemma_post_models.tex}
+
+Table~\ref{tab:main-communication-dilemma-crowding} asks whether service-heavy days leave less attention for propaganda once a channel publishes both kinds of content. The answer is yes. On mixed service-propaganda days, a 10-percentage-point increase in the service share is associated with about 0.088 lower log mean propaganda reads, or roughly an 8 to 9 percent decline in average propaganda readership. The negative coefficient on the state-governance share suggests that some of this competition reflects a broader zero-sum allocation of attention across non-propaganda content. What is distinctive about public service, however, is not simply that it occupies slots that might otherwise carry propaganda, but that it captures a positive readership premium when those slots are allocated to it. I therefore interpret this table as evidence of within-channel attention competition rather than as a clean causal displacement effect. Because the data do not preserve within-day ordering, the result identifies same-day competition rather than literal slot-by-slot displacement.
+
+\input{../tables/main_communication_dilemma_crowding.tex}
+
+A supplementary weekly lead specification, reported in the SI, is consistent with the idea that service-heavy weeks are associated with higher subsequent channel traffic. I do not treat that autoregressive pattern as the main finding because content mix can respond endogenously to anticipated demand. The strongest main-text claim is therefore narrower: service content helps build the audience for official accounts and, once published, absorbs a disproportionate share of the attention available within them.
+
+\subsection{Spatial and Temporal Coverage}
 
 Figure~\ref{fig:city-map-posts} maps the spatial distribution of corpus coverage at the prefecture level. The dataset covers 329 cities across all 31 provincial-level units. Posting volume concentrates in coastal and densely populated provinces but includes substantial representation from interior and western regions.
 

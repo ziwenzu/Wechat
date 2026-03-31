@@ -41,6 +41,22 @@ make_ci_ribbon <- function(d, yvar, p_order = 1) {
   grid
 }
 
+safe_rdd_covs <- function(y, x, cl = NULL, covs = NULL, p = 1, h = NULL, label = "") {
+  tryCatch({
+    args <- list(y = y, x = x, p = p, kernel = "triangular", all = TRUE)
+    if (!is.null(cl)) args$cluster <- cl
+    if (!is.null(covs)) args$covs <- covs
+    if (!is.null(h)) { args$h <- h; args$b <- h } else { args$bwselect <- "mserd" }
+    fit <- do.call(rdrobust::rdrobust, args)
+    data.table::data.table(
+      label = label, tau_rb = fit$coef[3], se_rb = fit$se[3],
+      ci_lo = fit$ci[3, 1], ci_hi = fit$ci[3, 2], pvalue = fit$pv[3],
+      bw_l = fit$bws[1, 1], bw_r = fit$bws[1, 2],
+      n_l = fit$N_h[1], n_r = fit$N_h[2], p = p
+    )
+  }, error = function(e) { message("  SKIP: ", label, " - ", e$message); NULL })
+}
+
 load_rdd_data <- function(paths) {
   dt <- data.table::as.data.table(readRDS(file.path(paths$data, "wechat_instructional_dataset.rds")))
   dt[, days_from_2018 := as.integer(publish_date - as.Date("2018-12-21"))]
