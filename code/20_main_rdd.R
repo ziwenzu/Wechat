@@ -87,12 +87,12 @@ results_2020 <- data.table::rbindlist(lapply(outcomes_2020, function(o) {
 results_2020[, cutoff := "2020-07-01"]
 
 # ── Heterogeneity by content family: H4 ──────────────────────
-# H4: reallocation strongest for hard propaganda, weakest for public service.
+# H4: reallocation margins (Like / Zaikan) strongest for hard propaganda,
+# weakest for public service. Net one-click is shown in figures as a supplement.
 
 message("=== 2020 heterogeneity by content family (H4) ===")
 
 het_outcomes <- list(
-  list(var = "one_click_rate", lbl = "One-Click"),
   list(var = "like_rate",      lbl = "Like"),
   list(var = "look_rate",      lbl = "Zaikan")
 )
@@ -140,7 +140,7 @@ fmt_tex(results_2020,
   file.path(paths$tables, "rdd_2020_main.tex"))
 
 fmt_tex(het_results,
-  "Heterogeneous RDD at July 2020 by content family (H4). Article-level outcomes. Political-risk gradient predicts strongest reallocation for hard propaganda.",
+  "Heterogeneous RDD at July 2020 by content family (H4). Article-level outcomes for the two reallocation margins, Like and Zaikan. Political-risk gradient predicts strongest reallocation for hard propaganda.",
   "tab:rdd-2020-het",
   file.path(paths$tables, "rdd_2020_heterogeneity.tex"))
 
@@ -202,64 +202,148 @@ rd_theme <- function(show_legend = FALSE) {
     )
 }
 
-make_rd_data <- function(y, x, binselect = "esmv", p = 1) {
-  out <- rdrobust::rdplot(y = y, x = x, binselect = binselect, p = p,
-                          ci = 95, hide = TRUE)
-  bins <- data.table::as.data.table(out$vars_bins)
-  poly <- data.table::as.data.table(out$vars_poly)
-  poly[, side := ifelse(rdplot_x < 0, "left", "right")]
-  list(bins = bins, poly = poly)
-}
+make_rd_data <- function(y, x, binselect = "esmv", p = 1, nbins = NULL) {
+  dt <- data.table::data.table(x = x, y = y)[is.finite(x) & is.finite(y)]
 
-save_rd_figure <- function(y, x, y_label, filename, binselect = "esmv", p = 1) {
-  rd <- make_rd_data(y, x, binselect = binselect, p = p)
-  bins <- rd$bins
-  fit_side <- function(x_sub, y_sub, degree = 1L, side_label = "left") {
-    sub <- data.table::data.table(x = x_sub, y = y_sub)[is.finite(x) & is.finite(y)]
+  if (is.null(nbins)) {
+    out <- rdrobust::rdplot(y = dt$y, x = dt$x, binselect = binselect, p = p,
+                            ci = 95, hide = TRUE)
+    bins <- data.table::as.data.table(out$vars_bins)
+    poly <- data.table::as.data.table(out$vars_poly)
+    poly[, side := ifelse(rdplot_x < 0, "left", "right")]
+    return(list(bins = bins, poly = poly))
+  }
 
-    if (nrow(sub) <= degree) {
+  if (length(nbins) == 1L) {
+    nbins <- c(nbins, nbins)
+  }
+
+  bin_side <- function(sub, nb) {
+    if (nrow(sub) == 0L) {
       return(data.table::data.table())
     }
 
-    fit <- stats::lm(y ~ stats::poly(x, degree, raw = TRUE), data = sub)
-    grid <- data.table::data.table(x = seq(min(sub$x), max(sub$x), length.out = 200))
-    pred <- stats::predict(fit, newdata = grid, se.fit = TRUE)
-    grid[, `:=`(
-      yhat = pred$fit,
-      ci_l = pred$fit - 1.96 * pred$se.fit,
-      ci_r = pred$fit + 1.96 * pred$se.fit,
-      side = side_label
-    )]
-    grid
+    n_breaks <- min(as.integer(nb), data.table::uniqueN(sub$x))
+    if (n_breaks <= 1L) {
+      return(sub[, .(
+        rdplot_mean_x = mean(x),
+        rdplot_mean_y = mean(y),
+        rdplot_ci_l = NA_real_,
+        rdplot_ci_r = NA_real_
+      )])
+    }
+
+    breaks <- seq(min(sub$x), max(sub$x), length.out = n_breaks + 1L)
+    sub[, bin := cut(x, breaks = breaks, include.lowest = TRUE, labels = FALSE)]
+    sub[!is.na(bin), .(
+      rdplot_mean_x = mean(x),
+      rdplot_mean_y = mean(y),
+      rdplot_ci_l = NA_real_,
+      rdplot_ci_r = NA_real_
+    ), by = bin][order(rdplot_mean_x)][, bin := NULL]
   }
 
-  fit_left <- fit_side(x[x < 0], y[x < 0], degree = p, side_label = "left")
-  fit_right <- fit_side(x[x > 0], y[x > 0], degree = p, side_label = "right")
-  fit_all <- data.table::rbindlist(list(fit_left, fit_right), use.names = TRUE, fill = TRUE)
-  plot_values <- c(
-    bins$rdplot_mean_y,
-    fit_all$yhat,
-    fit_all$ci_l,
-    fit_all$ci_r
-  )
+  bins_left <- bin_side(dt[x < 0], nbins[[1]])
+  bins_right <- bin_side(dt[x >= 0], nbins[[2]])
+  bins <- data.table::rbindlist(list(bins_left, bins_right), use.names = TRUE, fill = TRUE)
+  list(bins = bins)
+}
 
-  g <- ggplot2::ggplot() +
-    ggplot2::geom_ribbon(
-      data = fit_all,
-      ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = side),
-      fill = "#D8D8D8", alpha = 0.45
-    ) +
-    ggplot2::geom_point(
-      data = bins,
-      ggplot2::aes(x = rdplot_mean_x, y = rdplot_mean_y),
-      shape = 21, size = 2.15, stroke = 0.45,
-      fill = rd_palette$point_fill, color = rd_palette$point_outline
-    ) +
-    ggplot2::geom_line(
-      data = fit_all,
-      ggplot2::aes(x = x, y = yhat, group = side),
-      color = rd_palette$ink, linewidth = 0.75, lineend = "round"
-    ) +
+save_rd_figure <- function(y, x, y_label, filename, binselect = "esmv", p = 1,
+                           nbins = NULL, style = c("ribbon", "errorbar")) {
+  style <- match.arg(style)
+  rd <- make_rd_data(y, x, binselect = binselect, p = p, nbins = nbins)
+  bins <- rd$bins
+  if (style == "errorbar") {
+    poly <- rd$poly
+    poly_left <- poly[rdplot_x < 0]
+    poly_right <- poly[rdplot_x > 0]
+    plot_values <- c(
+      bins$rdplot_mean_y,
+      bins$rdplot_ci_l,
+      bins$rdplot_ci_r,
+      poly$rdplot_y
+    )
+
+    g <- ggplot2::ggplot() +
+      ggplot2::geom_errorbar(
+        data = bins,
+        ggplot2::aes(x = rdplot_mean_x, ymin = rdplot_ci_l, ymax = rdplot_ci_r),
+        width = 0.45, linewidth = 0.35, color = rd_palette$ci
+      ) +
+      ggplot2::geom_point(
+        data = bins,
+        ggplot2::aes(x = rdplot_mean_x, y = rdplot_mean_y),
+        shape = 21, size = 2.15, stroke = 0.45,
+        fill = rd_palette$point_fill, color = rd_palette$point_outline
+      ) +
+      ggplot2::geom_line(
+        data = poly_left,
+        ggplot2::aes(x = rdplot_x, y = rdplot_y),
+        color = rd_palette$ink, linewidth = 0.75, lineend = "round"
+      ) +
+      ggplot2::geom_line(
+        data = poly_right,
+        ggplot2::aes(x = rdplot_x, y = rdplot_y),
+        color = rd_palette$ink, linewidth = 0.75, lineend = "round"
+      )
+  } else {
+    fit_side <- function(x_sub, y_sub, degree = 1L, side_label = "left") {
+      sub <- data.table::data.table(x = x_sub, y = y_sub)[is.finite(x) & is.finite(y)]
+
+      if (nrow(sub) <= degree) {
+        return(data.table::data.table())
+      }
+
+      day_sub <- sub[, .(y = mean(y), n = .N), by = x][order(x)]
+
+      if (nrow(day_sub) <= degree) {
+        return(data.table::data.table())
+      }
+
+      fit <- stats::lm(y ~ stats::poly(x, degree, raw = TRUE), data = day_sub, weights = n)
+      grid <- data.table::data.table(x = seq(min(day_sub$x), max(day_sub$x), length.out = 200))
+      pred <- stats::predict(fit, newdata = grid, se.fit = TRUE)
+      band_half <- 1.96 * sqrt(pred$se.fit^2 + summary(fit)$sigma^2)
+      grid[, `:=`(
+        yhat = pred$fit,
+        ci_l = pred$fit - band_half,
+        ci_r = pred$fit + band_half,
+        side = side_label
+      )]
+      grid
+    }
+
+    fit_left <- fit_side(x[x < 0], y[x < 0], degree = p, side_label = "left")
+    fit_right <- fit_side(x[x > 0], y[x > 0], degree = p, side_label = "right")
+    fit_all <- data.table::rbindlist(list(fit_left, fit_right), use.names = TRUE, fill = TRUE)
+    plot_values <- c(
+      bins$rdplot_mean_y,
+      fit_all$yhat,
+      fit_all$ci_l,
+      fit_all$ci_r
+    )
+
+    g <- ggplot2::ggplot() +
+      ggplot2::geom_ribbon(
+        data = fit_all,
+        ggplot2::aes(x = x, ymin = ci_l, ymax = ci_r, group = side),
+        fill = "#D8D8D8", alpha = 0.45
+      ) +
+      ggplot2::geom_point(
+        data = bins,
+        ggplot2::aes(x = rdplot_mean_x, y = rdplot_mean_y),
+        shape = 21, size = 2.15, stroke = 0.45,
+        fill = rd_palette$point_fill, color = rd_palette$point_outline
+      ) +
+      ggplot2::geom_line(
+        data = fit_all,
+        ggplot2::aes(x = x, y = yhat, group = side),
+        color = rd_palette$ink, linewidth = 0.75, lineend = "round"
+      )
+  }
+
+  g <- g +
     ggplot2::geom_vline(
       xintercept = 0, linetype = "22", linewidth = 0.45, color = rd_palette$cutoff
     ) +
@@ -293,15 +377,18 @@ save_rd_figure(art_2018$share_rate, art_2018$days_from_2018,
 
 save_rd_figure(art_2020$one_click_rate, art_2020$days_from_2020,
                "One-Click Rate (Like + Zaikan)",
-               "rdd_2020_one_click_rate.pdf")
+               "rdd_2020_one_click_rate.pdf",
+               style = "errorbar")
 
 save_rd_figure(art_2020$look_rate, art_2020$days_from_2020,
                "Zaikan Rate (high-visibility)",
-               "rdd_2020_look_rate.pdf")
+               "rdd_2020_look_rate.pdf",
+               style = "errorbar")
 
 save_rd_figure(art_2020$share_rate, art_2020$days_from_2020,
                "Share/Forward Rate",
-               "rdd_2020_share_rate.pdf")
+               "rdd_2020_share_rate.pdf",
+               style = "errorbar")
 
 message("=== 2020 Unbundling Plot ===")
 

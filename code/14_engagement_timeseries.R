@@ -68,12 +68,13 @@ like_ymax <- max(monthly_like$value)
 like_yspan <- like_ymax - like_ymin
 
 first_panel <- factor("Like Rate (Dianzan)", levels = metric_levels)
+arrow_span_days <- 120L
 
 label_df <- data.frame(
   x = as.Date(c("2017-06-01", "2022-01-01")),
   y = c(
     like_ymax - 0.15 * like_yspan,
-    like_ymax - 0.95 * like_yspan
+    like_ymax - 0.15 * like_yspan
   ),
   label = c(
     "Dec 2018: Like replaced\nby Haokan",
@@ -84,13 +85,16 @@ label_df <- data.frame(
 )
 
 arrow_df <- data.frame(
-  x    = as.Date(c("2018-08-01", "2020-10-01")),
   xend = as.Date(c("2018-12-10", "2020-07-15")),
   y    = label_df$y,
   yend = label_df$y,
   metric = first_panel,
   stringsAsFactors = FALSE
 )
+arrow_df$x <- as.Date(c(
+  arrow_df$xend[1] - arrow_span_days,
+  arrow_df$xend[2] + arrow_span_days
+), origin = "1970-01-01")
 
 year_breaks <- seq(
   from = as.Date("2014-01-01"),

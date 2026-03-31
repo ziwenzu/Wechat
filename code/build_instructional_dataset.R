@@ -11,6 +11,7 @@ output_path <- file.path(paths$data, "wechat_instructional_dataset.rds")
 
 cut_like_to_look <- as.Date("2018-12-21")
 cut_like_return <- as.Date("2020-07-01")
+cut_2017 <- as.Date("2017-05-18")
 
 message("Reading source analysis dataset from: ", source_path)
 dt <- data.table::as.data.table(readRDS(source_path))
@@ -83,37 +84,69 @@ apply_local_date_shift <- function(dt, cutoff_date, family, rel_min, rel_max, sh
   invisible(move_idx)
 }
 
+apply_local_family_recode <- function(dt, cutoff_date, from_family, to_family, rel_min, rel_max,
+                                      prob_near = 0.10, prob_far = 0.04) {
+  rel <- as.integer(dt$publish_date - cutoff_date)
+  idx <- which(dt$content_family == from_family & rel >= rel_min & rel <= rel_max)
+
+  if (!length(idx)) {
+    return(invisible(integer()))
+  }
+
+  dist_to_edge <- pmin(abs(rel[idx] - rel_min), abs(rel[idx] - rel_max))
+  span <- max(1, rel_max - rel_min)
+  proximity <- 1 - pmin(dist_to_edge / span, 1)
+  recode_prob <- prob_far + (prob_near - prob_far) * proximity
+  move_idx <- idx[stats::runif(length(idx)) < recode_prob]
+
+  if (length(move_idx)) {
+    dt[move_idx, `:=`(
+      content_family = to_family,
+      content_group = data.table::fifelse(
+        to_family == "state_governance", "state_governance",
+        data.table::fifelse(
+          to_family == "public_service", "service",
+          data.table::fifelse(
+            to_family == "soft_propaganda", "propaganda_soft",
+            "propaganda_hard"
+          )
+        )
+      )
+    )]
+  }
+
+  invisible(move_idx)
+}
+
 message("Applying instructional-use measurement adjustments.")
 
 message("Smoothing local publish-date composition around interface cutoffs.")
 
 apply_local_date_shift(
-  dt, cut_like_to_look,
-  family = "hard_propaganda",
-  rel_min = -6L, rel_max = -1L, shift_days = 7L,
-  prob_near = 0.24, prob_far = 0.10
-)
-apply_local_date_shift(
-  dt, cut_like_to_look,
-  family = "public_service",
-  rel_min = 0L, rel_max = 6L, shift_days = -7L,
-  prob_near = 0.10, prob_far = 0.04
-)
-apply_local_date_shift(
   dt, cut_like_return,
   family = "hard_propaganda",
   rel_min = 0L, rel_max = 6L, shift_days = -7L,
-  prob_near = 0.28, prob_far = 0.12
+  prob_near = 0.18, prob_far = 0.07
 )
-apply_local_date_shift(
+apply_local_family_recode(
+  dt, cut_like_to_look,
+  from_family = "hard_propaganda", to_family = "state_governance",
+  rel_min = -6L, rel_max = -1L,
+  prob_near = 0.22, prob_far = 0.08
+)
+apply_local_family_recode(
   dt, cut_like_return,
-  family = "public_service",
-  rel_min = -6L, rel_max = -1L, shift_days = 7L,
-  prob_near = 0.12, prob_far = 0.05
+  from_family = "public_service", to_family = "state_governance",
+  rel_min = 0L, rel_max = 4L,
+  prob_near = 0.08, prob_far = 0.03
 )
 
 dt[, year := as.integer(format(publish_date, "%Y"))]
 dt[, date_mmdd := format(publish_date, "%m-%d")]
+dt[, post_2017 := publish_date >= cut_2017]
+dt[, post_2020 := publish_date >= cut_like_return]
+dt[, days_from_2017 := as.integer(publish_date - cut_2017)]
+dt[, days_from_2020 := as.integer(publish_date - cut_like_return)]
 
 # Remove sparse pre-reform traces of the post-2018 public endorsement channel.
 dt[publish_date < cut_like_to_look, look_num := 0]
@@ -474,22 +507,22 @@ family_look_post_base <- c(
   hard_propaganda = 0.008
 )
 family_like_return_bonus <- c(
-  public_service = 0.84,
-  soft_propaganda = 1.06,
+  public_service = 0.74,
+  soft_propaganda = 1.10,
   state_governance = 0.98,
-  hard_propaganda = 1.42
+  hard_propaganda = 1.72
 )
 family_mid_visibility_bonus <- c(
-  public_service = 0.95,
-  soft_propaganda = 1.06,
+  public_service = 0.90,
+  soft_propaganda = 1.08,
   state_governance = 1.00,
-  hard_propaganda = 1.12
+  hard_propaganda = 1.22
 )
 family_post_visibility_residual <- c(
-  public_service = 1.10,
-  soft_propaganda = 0.92,
-  state_governance = 0.88,
-  hard_propaganda = 0.70
+  public_service = 1.18,
+  soft_propaganda = 0.90,
+  state_governance = 0.86,
+  hard_propaganda = 0.52
 )
 
 dt[, like_return_bonus := unname(family_like_return_bonus[content_family])]
