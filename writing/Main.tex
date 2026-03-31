@@ -270,7 +270,7 @@ For the causal part of the paper, I exploit two sharp interface discontinuities 
 
 I estimate sharp regression discontinuity designs centered on each cutoff. The running variable is days relative to the reform date, and the unit of observation is the individual article. All specifications use local linear polynomial estimation with a triangular kernel, MSE-optimal bandwidth selection, and robust bias-corrected confidence intervals following \textcite{CalonicoEtAl2014}. Standard errors are clustered at the account level (329 prefecture-level accounts) to account for within-account correlation.
 
-Because the running variable is discrete at the day level and the article volume is highly uneven across accounts, the SI re-estimates the main specifications on account-day aggregates so that prolific posting accounts do not dominate the local fit. I also treat the 2017 discovery reform as a contrast case rather than a third main design because it broadened content discovery without directly rebundling the article-footer approval channel; SI~\ref{tab:rdd-2017-contrast} reports those estimates.
+Because the running variable is discrete at the day level and the article volume is highly uneven across accounts, the SI re-estimates the main specifications on account-day aggregates so that prolific posting accounts do not dominate the local fit. The SI also reports daily article and account counts around each cutoff, along with alternative clustering and manual two-way account-by-day clustered inference, to address the standard temporal-RDD concern that a small number of time points might drive significance (SI~\ref{tab:hr-diagnostics}--SI~\ref{tab:rdd-twoway-cluster}). I also treat the 2017 discovery reform as a contrast case rather than a third main design because it broadened content discovery without directly rebundling the article-footer approval channel; SI~\ref{tab:rdd-2017-contrast} reports those estimates.
 
 \section{Descriptive Findings}
 
@@ -518,7 +518,11 @@ The function of the balance table is narrower than that of the McCrary test. Rat
 
 \input{../tables/rdd_balance.tex}
 
-The SI extends these validity checks in three directions. SI~\ref{tab:rdd-balance-extended} reports richer composition diagnostics, including title length, head-article share, and additional content shares. SI~\ref{tab:rdd-account-day} shows that the main results survive account-day aggregation, and SI~\ref{tab:rdd-2020-alt-samples} shows that the 2020 estimates are similar after excluding COVID- and emergency-linked posts or excluding Hubei and Wuhan accounts.
+Temporal RDDs also raise the Hausman-Rapson concern that inference may rest on too few independent time points. That concern is mitigated here because the unit is the article rather than the day: within $\pm 30$ days of the cutoffs, the local windows contain an average of 961 articles from 188 accounts per day around the 2018 reform and 1,392 articles from 231 accounts per day around the 2020 reform (SI~\ref{tab:hr-diagnostics}). The sign and order of magnitude of the main one-click estimates are similar under heteroskedasticity-robust, province-clustered, and manual two-way account-by-day clustered inference (SI~\ref{tab:rdd-alt-cluster}; SI~\ref{tab:rdd-twoway-cluster}). Because the running variable is discrete in days and \texttt{rdrobust} flags mass points, I treat these checks as strengthening rather than eliminating the limits of a temporal design.
+
+A sharper validity concern is that July 1, 2020 coincides with the CPC anniversary. SI~\ref{tab:placebo-party-2019} shows that July 1, 2019 also produces a negative one-click discontinuity and lower reads even without a footer redesign, so the 2020 timing cannot be read as a confound-free calendar shock. I therefore interpret the aggregate 2020 one-click recovery cautiously. At the same time, the most distinctive 2020 pattern does not disappear once the most obvious anniversary content is removed: party-themed posts make up only 1.1\% of pre-cutoff and 1.4\% of post-cutoff articles, excluding them leaves the positive like and negative \textit{zaikan} discontinuities nearly unchanged, and hard-propaganda share and reads remain locally continuous (SI~\ref{tab:rdd-2020-no-party}; SI~\ref{tab:content-composition-jump}). I therefore place more weight on the within-footer reallocation from \textit{zaikan} to like than on a strong claim about the exact size of the overall July 2020 one-click level shift.
+
+The SI extends these validity checks in six directions. SI~\ref{tab:hr-diagnostics}--SI~\ref{tab:rdd-twoway-cluster} address temporal-RDD inference and clustering. SI~\ref{tab:placebo-party-2019}--SI~\ref{tab:content-composition-jump} examine July 1 calendar confounds. SI~\ref{tab:rdd-cov-adjusted} reports covariate-adjusted local specifications. SI~\ref{tab:rdd-balance-extended} reports richer composition diagnostics, including title length, head-article share, and additional content shares. SI~\ref{tab:rdd-account-day} shows that the main results survive account-day aggregation, and SI~\ref{tab:rdd-2020-alt-samples} shows that the 2020 estimates are similar after excluding COVID- and emergency-linked posts or excluding Hubei and Wuhan accounts.
 
 \section{Conclusion}
 
@@ -779,6 +783,30 @@ Its function is alternative-explanation control. The table directly addresses th
 
 \input{../tables/appendix_rdd_2020_alt_samples.tex}
 
+\subsection{Temporal RDD Inference and Clustering}
+
+Temporal RDD designs invite the concern that the design may effectively rely on a small number of time points rather than many quasi-independent observations. In this paper, however, the unit is the article, not the day, and the local windows are dense. Table~\ref{tab:hr-diagnostics} shows averages of 961 articles and 188 accounts per day around the 2018 cutoff, and 1,392 articles and 231 accounts per day around the 2020 cutoff.
+
+Table~\ref{tab:rdd-alt-cluster} compares the baseline account-clustered estimates to heteroskedasticity-robust and province-clustered inference. Table~\ref{tab:rdd-twoway-cluster} then fits the same local-linear specification with manual account, day, and two-way clustered standard errors. Across all versions, the sign and order of magnitude remain stable.
+
+\input{../tables/appendix_hausman_rapson_diagnostics.tex}
+
+\input{../tables/appendix_rdd_alt_clustering.tex}
+
+\input{../tables/appendix_rdd_twoway_cluster.tex}
+
+\subsection{July 1 Calendar Confounds}
+
+A more specific threat concerns the July 1, 2020 timing itself. Table~\ref{tab:placebo-party-2019} shows that July 1, 2019, when no footer redesign occurred, still exhibits a negative one-click discontinuity and lower reads. This makes clear that July 1 carries its own calendar-specific engagement dynamics and that the 2020 timing should not be interpreted as a pure no-confound experiment.
+
+The more relevant question is whether the 2020 rebundling pattern can be explained entirely by anniversary content. Table~\ref{tab:rdd-2020-no-party} shows that dropping party-themed posts leaves the positive like and negative \textit{zaikan} discontinuities nearly unchanged. Table~\ref{tab:content-composition-jump} shows no discontinuity in hard-propaganda share or reads at the 2020 cutoff, although the party-themed share itself rises modestly ($p = 0.065$) and rises more clearly in the 2019 placebo window. Taken together, these results justify a cautious interpretation of the 2020 aggregate one-click effect while leaving the within-footer reallocation mechanism intact.
+
+\input{../tables/appendix_placebo_party_2019.tex}
+
+\input{../tables/appendix_rdd_2020_excl_party.tex}
+
+\input{../tables/appendix_content_composition_jump.tex}
+
 \subsection{Extended Balance and Composition Diagnostics}
 
 Table~\ref{tab:rdd-balance-extended} expands the core balance tests to title length, head-article share, all four content families, and emergency/COVID-linked content shares. Some of these diagnostics show modest local composition shifts, which is precisely why the paper keeps the main-text balance table narrow and theory-linked. The central one-click estimates nevertheless remain stable in the alternative-sample and account-day checks above.
@@ -786,6 +814,12 @@ Table~\ref{tab:rdd-balance-extended} expands the core balance tests to title len
 The function of the extended balance table is diagnostic transparency. Rather than hiding marginal composition changes, it shows exactly where they appear and why the paper leans on a bundle of robustness checks rather than a single balance screen.
 
 \input{../tables/appendix_rdd_balance_extended.tex}
+
+\subsection{Covariate-Adjusted Local Specifications}
+
+Table~\ref{tab:rdd-cov-adjusted} re-estimates the main designs with a parsimonious set of pre-publication article attributes: title length, head-article status, day-of-week, and content-family indicators. The point estimates move little. This check is not required for identification in a sharp RDD, but it shows that the main discontinuities are not driven by obvious observable article characteristics.
+
+\input{../tables/appendix_rdd_covariate_adjusted.tex}
 
 \subsection{Additional Outcome Clarification Plots}
 

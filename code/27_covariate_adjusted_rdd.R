@@ -30,8 +30,12 @@ art_2020 <- dt[abs(days_from_2020) <= max_window]
 message("=== Covariate-adjusted RDD ===")
 
 build_covs <- function(sub) {
-  as.matrix(sub[, .(read_num, title_length, is_head = as.numeric(is_head),
-                     dow, is_hard_prop, is_soft_prop, is_pub_svc)])
+  as.matrix(sub[, .(title_length,
+                    is_head = as.numeric(is_head),
+                    dow,
+                    is_hard_prop,
+                    is_soft_prop,
+                    is_pub_svc)])
 }
 
 run_cov_comparison <- function(sub, xvar, yvar, y_label, cutoff_tag) {
@@ -59,8 +63,8 @@ fmt_rdd_tex(
   cov_adj_res,
   caption = paste(
     "Covariate-adjusted RDD estimates.",
-    "Covariates: reads, title length, head-article indicator, day-of-week,",
-    "and content-family indicators. Following Calonico, Cattaneo, and Titiunik",
+    "Covariates: title length, head-article indicator, day-of-week, and",
+    "content-family indicators. Following Calonico, Cattaneo, and Titiunik",
     "(2019), covariates are included in the local polynomial regression to",
     "improve efficiency without changing the point estimate under correct",
     "specification."

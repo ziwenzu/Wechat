@@ -14,9 +14,25 @@ dt[, account_id := .GRP, by = public_account_name]
 max_window <- 30L
 
 party_pat <- "建党|党的生日|七一|光辉历程|党史|党旗|入党|党员|红船|初心使命"
-dt[, party_anniversary_flag := grepl(party_pat, paste(title, keywords), perl = TRUE)]
+dt[, title_clean := data.table::fifelse(is.na(title), "", title)]
+dt[, keywords_clean := data.table::fifelse(is.na(keywords), "", keywords)]
+dt[, party_anniversary_flag := grepl(
+  party_pat,
+  paste(title_clean, keywords_clean),
+  perl = TRUE
+)]
 dt[, dow := as.integer(format(publish_date, "%u"))]
 dt[, is_weekend := dow >= 6L]
+
+art_2018 <- dt[abs(days_from_2018) <= max_window]
+art_2020 <- dt[abs(days_from_2020) <= max_window]
+
+safe_if_observed <- function(y, x, cl, label) {
+  keep <- is.finite(y) & is.finite(x) & !is.na(cl)
+  if (sum(keep) == 0L) return(NULL)
+  if (sum(x[keep] < 0) < 20L || sum(x[keep] >= 0) < 20L) return(NULL)
+  safe_rdd(y[keep], x[keep], cl[keep], label = label)
+}
 
 # ==============================================================================
 # 2019-07-01 placebo: Party anniversary without interface reform
@@ -30,10 +46,8 @@ art_2019jul <- dt[abs(days_from_2019jul) <= max_window]
 placebo_party <- data.table::rbindlist(list(
   safe_rdd(art_2019jul$one_click_rate, art_2019jul$days_from_2019jul,
            art_2019jul$account_id, label = "One-click rate (2019-07-01)"),
-  safe_rdd(art_2019jul$like_rate, art_2019jul$days_from_2019jul,
-           art_2019jul$account_id, label = "Like rate (2019-07-01)"),
-  safe_rdd(art_2019jul$look_rate, art_2019jul$days_from_2019jul,
-           art_2019jul$account_id, label = "Zaikan rate (2019-07-01)"),
+  safe_if_observed(art_2019jul$read_num, art_2019jul$days_from_2019jul,
+                   art_2019jul$account_id, label = "Reads (2019-07-01)"),
   safe_rdd(art_2019jul$share_rate, art_2019jul$days_from_2019jul,
            art_2019jul$account_id, label = "Share rate (2019-07-01)")
 ))
@@ -43,7 +57,9 @@ fmt_rdd_tex(
   caption = paste(
     "Placebo RDD at July 1, 2019 (CPC 98th anniversary, no interface reform).",
     "This date matches the calendar position of the July 2020 cutoff but",
-    "without the footer redesign, isolating the party-anniversary confound."
+    "without the footer redesign. A non-zero one-click estimate therefore",
+    "indicates that some July 1 engagement movement may reflect calendar-specific",
+    "dynamics rather than the redesign alone."
   ),
   label = "tab:placebo-party-2019",
   filepath = file.path(paths$tables, "appendix_placebo_party_2019.tex")
@@ -55,8 +71,7 @@ fmt_rdd_tex(
 
 message("=== Exclude party-themed articles ===")
 
-art_2020 <- dt[abs(days_from_2020) <= max_window]
-art_2020_no_party <- art_2020[!party_anniversary_flag]
+art_2020_no_party <- art_2020[party_anniversary_flag == FALSE]
 
 party_excl <- data.table::rbindlist(list(
   safe_rdd(art_2020$one_click_rate, art_2020$days_from_2020,
@@ -109,7 +124,7 @@ run_omnibus <- function(sub, xvar, cutoff_tag) {
   sub[, dow := as.integer(format(publish_date, "%u"))]
 
   covs_mat <- model.matrix(
-    ~ read_num + title_length + is_head + dow +
+    ~ title_length + is_head + dow +
       I(content_family == "hard_propaganda") +
       I(content_family == "soft_propaganda") +
       I(content_family == "public_service"),
@@ -134,43 +149,14 @@ omnibus_res <- data.table::rbindlist(list(
 fmt_rdd_tex(
   omnibus_res,
   caption = paste(
-    "Omnibus balance test. The outcome is a predicted one-click rate",
-    "constructed from pre-determined covariates (reads, title length,",
-    "head-article indicator, day-of-week, content family shares) using",
-    "coefficients estimated on the left side of the cutoff only.",
-    "A null result indicates no systematic covariate discontinuity."
+    "Omnibus article-composition balance test. The outcome is a predicted",
+    "one-click rate constructed from pre-publication article attributes",
+    "(title length, head-article indicator, day-of-week, and content-family",
+    "indicators) using coefficients estimated on the left side of the cutoff",
+    "only. A null result indicates no systematic composition discontinuity."
   ),
   label = "tab:omnibus-balance",
   filepath = file.path(paths$tables, "appendix_omnibus_balance.tex")
-)
-
-# ==============================================================================
-# Day-of-week balance at cutoffs
-# ==============================================================================
-
-message("=== Day-of-week balance ===")
-
-dow_res <- data.table::rbindlist(list(
-  safe_rdd(as.numeric(art_2018$is_weekend), art_2018$days_from_2018,
-           art_2018$account_id, label = "Weekend share (2018)"),
-  safe_rdd(as.numeric(art_2020$is_weekend), art_2020$days_from_2020,
-           art_2020$account_id, label = "Weekend share (2020)"),
-  safe_rdd(as.numeric(art_2018$dow), art_2018$days_from_2018,
-           art_2018$account_id, label = "Day-of-week (2018)"),
-  safe_rdd(as.numeric(art_2020$dow), art_2020$days_from_2020,
-           art_2020$account_id, label = "Day-of-week (2020)")
-))
-
-fmt_rdd_tex(
-  dow_res,
-  caption = paste(
-    "Day-of-week balance at each cutoff.",
-    "Tests whether the composition of weekdays vs. weekends shifts at the",
-    "cutoff, which could confound estimates if engagement rates exhibit",
-    "strong calendar-cycle patterns."
-  ),
-  label = "tab:dow-balance",
-  filepath = file.path(paths$tables, "appendix_dow_balance.tex")
 )
 
 # ==============================================================================
@@ -190,7 +176,7 @@ comp_res <- data.table::rbindlist(list(
   safe_rdd(as.numeric(art_2019jul$party_anniversary_flag),
            art_2019jul$days_from_2019jul, art_2019jul$account_id,
            label = "Party-themed share (2019 placebo)")
-))
+), fill = TRUE)
 
 fmt_rdd_tex(
   comp_res,

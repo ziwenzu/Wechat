@@ -23,8 +23,8 @@ art_2020 <- dt[abs(days_from_2020) <= max_window]
 
 message("=== Hausman-Rapson diagnostics ===")
 
-daily_n_2018 <- art_2018[, .(n_articles = .N, n_accounts = uniqueN(account_id)), by = days_from_2018]
-daily_n_2020 <- art_2020[, .(n_articles = .N, n_accounts = uniqueN(account_id)), by = days_from_2020]
+daily_n_2018 <- art_2018[, .(n_articles = .N, n_accounts = data.table::uniqueN(account_id)), by = days_from_2018]
+daily_n_2020 <- art_2020[, .(n_articles = .N, n_accounts = data.table::uniqueN(account_id)), by = days_from_2020]
 
 hr_summary <- data.table::data.table(
   Statistic = c(
@@ -48,8 +48,8 @@ hr_summary <- data.table::data.table(
     mean(daily_n_2020$n_accounts),
     nrow(art_2018),
     nrow(art_2020),
-    uniqueN(art_2018$account_id),
-    uniqueN(art_2020$account_id)
+    data.table::uniqueN(art_2018$account_id),
+    data.table::uniqueN(art_2020$account_id)
   )
 )
 
@@ -105,9 +105,9 @@ fmt_rdd_tex(
   cluster_res,
   caption = paste(
     "Alternative clustering for RDD standard errors.",
-    "Baseline clusters at the account level.",
-    "Day-level clustering addresses Hausman-Rapson (2018) concerns about",
-    "within-day correlation in temporal RDD designs."
+    "The table compares the baseline account-clustered estimates to",
+    "heteroskedasticity-robust and province-clustered inference.",
+    "The companion two-way table adds explicit day-level dependence."
   ),
   label = "tab:rdd-alt-cluster",
   filepath = file.path(paths$tables, "appendix_rdd_alt_clustering.tex")
