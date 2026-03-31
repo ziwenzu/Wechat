@@ -181,22 +181,38 @@ overall_vai <- mechanism_rows[Statistic == "Post-cutoff visibility-avoidance ind
 p_vai <- ggplot2::ggplot(plot_rows, ggplot2::aes(x = `VAI (%)`, y = Family)) +
   ggplot2::geom_segment(
     ggplot2::aes(x = 0, xend = `VAI (%)`, y = Family, yend = Family),
-    linewidth = 0.7,
-    color = "grey55"
+    linewidth = 0.8,
+    color = "grey40"
   ) +
-  ggplot2::geom_point(shape = 21, size = 3.2, fill = "white", color = "black", stroke = 0.7) +
-  ggplot2::geom_vline(xintercept = overall_vai, linetype = "dashed", color = "grey35", linewidth = 0.5) +
-  ggplot2::geom_text(
-    ggplot2::aes(label = sprintf("%.1f", `VAI (%)`)),
-    hjust = -0.15,
-    size = 3.1,
-    family = "serif"
+  ggplot2::geom_point(
+    shape = 21,
+    size = 4.4,
+    fill = "grey20",
+    color = "black",
+    stroke = 0.35
+  ) +
+  ggplot2::geom_vline(
+    xintercept = overall_vai,
+    linetype = "dashed",
+    color = "grey35",
+    linewidth = 0.6
+  ) +
+  ggplot2::geom_label(
+    ggplot2::aes(label = sprintf("%.1f%%", `VAI (%)`)),
+    nudge_x = 4.5,
+    hjust = 0,
+    size = 3.8,
+    label.size = 0,
+    label.padding = grid::unit(0.14, "lines"),
+    fill = "white"
   ) +
   ggplot2::scale_x_continuous(
-    limits = c(0, max(100, max(plot_rows$`VAI (%)`) + 8)),
+    limits = c(0, 100),
     breaks = seq(0, 100, by = 20),
-    labels = function(x) paste0(x, "%")
+    labels = function(x) paste0(x, "%"),
+    expand = ggplot2::expansion(mult = c(0, 0.02))
   ) +
+  ggplot2::coord_cartesian(clip = "off") +
   ggplot2::labs(
     x = "Visibility-Avoidance Index",
     y = NULL
@@ -204,14 +220,17 @@ p_vai <- ggplot2::ggplot(plot_rows, ggplot2::aes(x = `VAI (%)`, y = Family)) +
   rd_theme +
   ggplot2::theme(
     panel.grid.major.y = ggplot2::element_blank(),
-    panel.grid.minor = ggplot2::element_blank()
+    panel.grid.minor = ggplot2::element_blank(),
+    axis.text = ggplot2::element_text(size = 11.5),
+    axis.title = ggplot2::element_text(size = 11.5),
+    plot.margin = ggplot2::margin(t = 6, r = 34, b = 6, l = 8)
   )
 
 save_figure(
   path = file.path(paths$figures, "main_vai_family.pdf"),
   plot = p_vai,
-  width = 7,
-  height = 4.8,
+  width = 7.6,
+  height = 5.2,
   units = "in",
   bg = "white",
   useDingbats = FALSE
