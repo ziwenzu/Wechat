@@ -161,7 +161,7 @@ dt[
   ,
   recency_read_multiplier := ifelse(
     days_to_sample_end <= 180L,
-    0.70 + 0.30 * (days_to_sample_end / 180),
+    0.90 + 0.10 * (days_to_sample_end / 180),
     1.00
   )
 ]
@@ -302,6 +302,13 @@ year_engagement_lookup <- c(
 )
 dt[, year_engagement_multiplier := unname(year_engagement_lookup[as.character(year)])]
 dt[is.na(year_engagement_multiplier), year_engagement_multiplier := 1]
+
+year_share_lookup <- c(
+  "2015" = 0.62, "2016" = 0.70, "2017" = 0.80, "2018" = 0.88, "2019" = 0.92,
+  "2020" = 1.00, "2021" = 1.03, "2022" = 1.04, "2023" = 1.05, "2024" = 1.05
+)
+dt[, year_share_multiplier := unname(year_share_lookup[as.character(year)])]
+dt[is.na(year_share_multiplier), year_share_multiplier := 1]
 dt[, account_engagement_multiplier := pmin(pmax(sqrt(account_read_multiplier), 0.80), 1.75)]
 top_read_cut <- as.numeric(stats::quantile(dt$read_num, 0.99, na.rm = TRUE))
 dt[, top_read_flag := read_num >= top_read_cut]
@@ -310,7 +317,7 @@ dt[
   ,
   recency_engagement_multiplier := ifelse(
     days_to_sample_end <= 180L,
-    0.55 + 0.45 * (days_to_sample_end / 180),
+    0.88 + 0.12 * (days_to_sample_end / 180),
     1.00
   )
 ]
@@ -340,16 +347,16 @@ family_like_post_base <- c(
   hard_propaganda = 0.019
 )
 family_look_mid_base <- c(
-  public_service = 0.0020,
-  soft_propaganda = 0.0015,
-  state_governance = 0.0011,
-  hard_propaganda = 0.0008
+  public_service = 0.042,
+  soft_propaganda = 0.036,
+  state_governance = 0.027,
+  hard_propaganda = 0.021
 )
 family_look_post_base <- c(
-  public_service = 0.0016,
-  soft_propaganda = 0.0012,
-  state_governance = 0.0009,
-  hard_propaganda = 0.0007
+  public_service = 0.018,
+  soft_propaganda = 0.014,
+  state_governance = 0.011,
+  hard_propaganda = 0.008
 )
 
 dt[, common_shock := exp(stats::rnorm(.N, mean = 0, sd = 0.22))]
@@ -392,7 +399,7 @@ dt[
   ,
   share_prob := pmin(
     unname(family_share_base[content_family]) *
-      year_engagement_multiplier *
+      year_share_multiplier *
       account_engagement_multiplier *
       recency_engagement_multiplier *
       common_shock * circulation_shock *
@@ -404,6 +411,7 @@ dt[
     0.035
   )
 ]
+dt[publish_date >= cut_like_return, share_prob := share_prob * 1.35]
 dt[silent_interaction == 1, share_prob := share_prob * 0.55]
 dt[
   ,
@@ -454,6 +462,9 @@ dt[publish_date >= cut_like_return, like_prob :=
 ]
 dt[silent_interaction == 1, like_prob := like_prob * 0.60]
 
+dt[days_to_sample_end <= 180L & publish_date >= cut_like_return,
+   like_prob := like_prob * (recency_read_multiplier / recency_engagement_multiplier)]
+
 dt[, look_prob := 0]
 dt[publish_date >= cut_like_to_look & publish_date < cut_like_return, look_prob :=
   pmin(
@@ -466,7 +477,7 @@ dt[publish_date >= cut_like_to_look & publish_date < cut_like_return, look_prob 
          0.06 * as.integer(is_service_helpful) +
          0.05 * as.integer(is_big_city) +
          0.05 * as.integer(is_collectible)),
-    0.030
+    0.10
   )
 ]
 dt[publish_date >= cut_like_return, look_prob :=
@@ -480,7 +491,7 @@ dt[publish_date >= cut_like_return, look_prob :=
          0.06 * as.integer(is_service_helpful) +
          0.05 * as.integer(is_big_city) +
          0.05 * as.integer(is_collectible)),
-    0.024
+    0.06
   )
 ]
 dt[silent_interaction == 1, look_prob := look_prob * 0.60]
@@ -521,12 +532,12 @@ dt[
 dt[
   ,
   look_pos_prob := pmin(
-    (0.02 + 0.26 * read_scale +
-      0.04 * as.integer(is_service_helpful) +
+    (0.06 + 0.42 * read_scale +
+      0.07 * as.integer(is_service_helpful) +
       0.04 * as.integer(is_big_city) +
       0.05 * hot_score) *
       common_shock^0.18 * approval_shock^0.20 * engagement_cluster^0.20,
-    0.72
+    0.88
   )
 ]
 dt[
@@ -540,6 +551,23 @@ dt[
     0.58
   )
 ]
+
+year_share_pos_lookup <- c(
+  "2015" = 0.65, "2016" = 0.72, "2017" = 0.80, "2018" = 0.88, "2019" = 0.93,
+  "2020" = 1.00, "2021" = 1.02, "2022" = 1.03, "2023" = 1.03, "2024" = 1.04
+)
+dt[, year_share_pos_mult := unname(year_share_pos_lookup[as.character(year)])]
+dt[is.na(year_share_pos_mult), year_share_pos_mult := 1]
+dt[, share_pos_prob := pmin(share_pos_prob * year_share_pos_mult, 0.82)]
+dt[publish_date >= cut_like_return, share_pos_prob := pmin(share_pos_prob * 1.25, 0.82)]
+
+year_look_pos_lookup <- c(
+  "2015" = 1.00, "2016" = 1.00, "2017" = 1.00, "2018" = 1.00, "2019" = 0.90,
+  "2020" = 1.00, "2021" = 1.06, "2022" = 1.10, "2023" = 1.12, "2024" = 1.14
+)
+dt[, year_look_pos_mult := unname(year_look_pos_lookup[as.character(year)])]
+dt[is.na(year_look_pos_mult), year_look_pos_mult := 1]
+dt[, look_pos_prob := pmin(look_pos_prob * year_look_pos_mult, 0.88)]
 
 dt[silent_interaction == 1, like_pos_prob := like_pos_prob * 0.72]
 dt[silent_interaction == 1, share_pos_prob := share_pos_prob * 0.70]
@@ -592,6 +620,9 @@ dt[, `:=`(
   top_read_flag = NULL,
   read_scale = NULL,
   year_engagement_multiplier = NULL,
+  year_share_multiplier = NULL,
+  year_share_pos_mult = NULL,
+  year_look_pos_mult = NULL,
   account_engagement_multiplier = NULL,
   recency_engagement_multiplier = NULL,
   common_shock = NULL,
