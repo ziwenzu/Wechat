@@ -140,7 +140,7 @@ linkcolor ={blue}}
 \thispagestyle{empty}
 
   \begin{abstract}
-  \noindent How should scholars interpret engagement with official media in autocracies? I argue that official social media are mixed channels that combine public-service information with political messaging, and that citizens sort engagement by the visibility of the trace they leave behind. I test this claim using 4.21 million posts from 329 Chinese local-government WeChat accounts and two interface reforms that changed whether approval took the form of low-visibility approval or socially legible endorsement. When WeChat replaced the like button in December 2018, one-click engagement fell by 1.9 percentage points. When it restored a low-visibility like button in July 2020, total one-click engagement rose by 2.9 points, driven by a 4.3-point increase in likes and a 1.2-point decline in visible \textit{zaikan}. The shift is strongest for politically risky content. The findings show that digital engagement with state media records strategic self-presentation, not simple regime support.
+  \noindent As states increasingly govern through digital platforms, how citizens engage with official social media remains poorly understood. Official accounts combine public-service provision with propaganda, making interaction with them both information use and a politically consequential act visible to the state and other users. Using 4.21 million posts from 329 Chinese local-government WeChat accounts and a regression discontinuity design around two platform reforms, I show that the public visibility of interaction shapes participation. Making affirmative responses more publicly visible reduced approval-oriented engagement by 1.9 percentage points; restoring a less visible option increased it by 2.9 points and shifted participation away from public endorsement. Visible-endorsement avoidance is strongest for hard propaganda and remains higher for soft propaganda than for public-service content. Platform design thus structures political participation by changing the visibility of expression, with implications for the study of citizen-state interaction under digital governance.
 
 \vspace{0.2in}
 
@@ -247,7 +247,7 @@ The paper exploits two sharp interface discontinuities as natural experiments. O
 
 I estimate sharp regression discontinuity designs centered on each cutoff. The running variable is days relative to the reform date, and the unit of observation is the individual article. All specifications use local linear polynomial estimation with a triangular kernel, MSE-optimal bandwidth selection, and robust bias-corrected confidence intervals following \textcite{CalonicoEtAl2014}. Standard errors are clustered at the account level (329 prefecture-level accounts) to account for within-account correlation.
 
-Because the running variable is discrete at the day level, the SI reports two complementary checks tailored to that setting. SI~\ref{tab:rdd-account-day} re-estimates the main specifications on account-day aggregates so that prolific posting accounts do not dominate the local fit, and SI~\ref{tab:rdd-cutoff-randomization} reports a local placebo-cutoff procedure in a narrow neighborhood around each reform date. I also treat the 2017 discovery reform as a contrast case rather than a third main design because it broadened content discovery without directly rebundling the article-footer approval channel; SI~\ref{tab:rdd-2017-contrast} reports those estimates.
+Because the running variable is discrete at the day level and the article volume is highly uneven across accounts, the SI re-estimates the main specifications on account-day aggregates so that prolific posting accounts do not dominate the local fit. I also treat the 2017 discovery reform as a contrast case rather than a third main design because it broadened content discovery without directly rebundling the article-footer approval channel; SI~\ref{tab:rdd-2017-contrast} reports those estimates.
 
 \section{Descriptive Findings}
 
@@ -393,7 +393,54 @@ The figure's function is interpretive. It shows why the family-specific table ma
 \end{minipage}
 \end{figure}
 
-\subsection{Mechanism: Visibility, Not Attention}
+\subsection{Mechanism: Behavioral Self-Censorship and Visibility Avoidance}
+
+The 2020 redesign makes it possible to quantify the mechanism more directly. The main 2020 table uses outcome-specific MSE-optimal bandwidths, which is appropriate for separate estimation but not for an exact decomposition. To recover an additive decomposition, I re-estimate the July 2020 cutoff with a \textit{shared} local-linear bandwidth inherited from the total one-click specification. Let $\hat{\mu}_{m}^{-}(h)$ and $\hat{\mu}_{m}^{+}(h)$ denote the left- and right-limit fitted values at the cutoff for outcome $m \in \{O, L, Z\}$, where $O$ is total one-click engagement, $L$ is like, and $Z$ is \textit{zaikan}. Using the common bandwidth $h$, I proceed in three steps: estimate the same local-linear specification for all three outcomes, define the shared-bandwidth jump as
+\[
+\hat{\tau}_{m}(h) = \hat{\mu}_{m}^{+}(h) - \hat{\mu}_{m}^{-}(h),
+\]
+and then convert those three jumps into descriptive mechanism summaries. Because $O = L + Z$ at the article level and all three outcomes are estimated with the same bandwidth, kernel, and local polynomial order, the decomposition satisfies
+\[
+\hat{\tau}_{O}(h) = \hat{\tau}_{L}(h) + \hat{\tau}_{Z}(h).
+\]
+
+I summarize the decomposition with two quantities. First, I define a \textit{behavioral self-censorship proxy} as the share of the post-2020 increase in low-visibility likes that shows up as net-new one-click expression rather than mere substitution away from visible endorsement:
+\[
+\text{Behavioral self-censorship proxy} = \frac{\hat{\tau}_{O}(h)}{\hat{\tau}_{L}(h)},
+\qquad
+\text{Visible-to-private substitution share} = \frac{-\hat{\tau}_{Z}(h)}{\hat{\tau}_{L}(h)}.
+\]
+Second, for each content family $f$, I define a \textit{visibility-avoidance index} (VAI) as
+\[
+\widehat{VAI}_{f} = \frac{\hat{\mu}_{L,f}^{+}(h)}
+{\hat{\mu}_{L,f}^{+}(h) + \hat{\mu}_{Z,f}^{+}(h)}.
+\]
+This is the share of post-reform one-click approval routed through the lower-visibility like channel rather than publicly legible \textit{zaikan}. Higher values indicate stronger avoidance of visible endorsement conditional on leaving any one-click trace. I treat these quantities as descriptive mechanism summaries rather than as a true preference-falsification rate.
+
+Table~\ref{tab:mechanism-decomposition} reports the aggregate decomposition. With the shared bandwidth, the one-click jump is 3.05 percentage points, the like jump is 4.29 points, and the \textit{zaikan} jump is $-1.24$ points, so the additive identity holds exactly. The behavioral self-censorship proxy is 71.0\%, meaning that about seven-tenths of the restored low-visibility approval appears as net-new one-click expression rather than simple migration out of visible \textit{zaikan}. The remaining 29.0\% is visible-to-private substitution. The post-cutoff VAI is 68.3\%, indicating that more than two-thirds of one-click approval at the cutoff is routed through the less visible channel.
+
+Its function is mechanism quantification. Instead of stopping at the statement that likes rise and \textit{zaikan} falls, the table translates the 2020 redesign into a lower-claim but directly interpretable behavioral proxy for self-censorship and visible-trace avoidance.
+
+\input{../tables/main_mechanism_decomposition.tex}
+
+Figure~\ref{fig:vai-family} and Table~\ref{tab:vai-family} extend the VAI to the four content families. Public service has the lowest VAI at 52.7\%, meaning approval remains relatively balanced between low- and high-visibility channels. Hard propaganda has by far the highest VAI at 88.2\%, implying that nearly nine in ten one-click approval traces are routed through likes rather than \textit{zaikan}. State governance and soft propaganda lie in between, both well above public service. This pattern is exactly what the visibility-cost argument predicts: once content becomes politically riskier, users who still engage disproportionately choose the less visible channel.
+
+Their function is to make the risk gradient legible in a single mechanism metric. The family-specific decomposition table shows the ingredients of the index, while the figure makes clear that the main contrast is between public-service content and politically riskier material, with hard propaganda as the extreme case of visible-endorsement avoidance.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.75\linewidth]{../figures/main_vai_family.pdf}
+\caption{Visibility-avoidance index by content family at the July 2020 cutoff.}
+\label{fig:vai-family}
+\begin{minipage}{\textwidth}
+\vspace{2pt}
+\footnotesize \textit{Note:} The visibility-avoidance index is defined as $\widehat{VAI}_{f} = \hat{\mu}_{L,f}^{+}(h) / [\hat{\mu}_{L,f}^{+}(h) + \hat{\mu}_{Z,f}^{+}(h)]$, where the right-side fitted values are estimated with the common local-linear bandwidth from the total 2020 one-click specification. The dashed vertical line marks the overall post-cutoff VAI.
+\end{minipage}
+\end{figure}
+
+\input{../tables/main_vai_family.tex}
+
+\subsection{Mechanism Check: Visibility, Not Attention}
 
 The core theoretical claim is that interface reforms changed the \textit{visibility cost} of engagement, not the underlying attention to official content. If the mechanism operates through visibility rather than attention, predetermined outcomes that do not depend on footer-button design should show no discontinuity.
 
@@ -432,7 +479,7 @@ The function of the balance table is narrower than that of the McCrary test. Rat
 
 \input{../tables/rdd_balance.tex}
 
-The SI extends these validity checks in five directions. SI~\ref{tab:rdd-balance-extended} reports richer composition diagnostics, including title length, head-article share, and additional content shares. SI~\ref{tab:rdd-account-day} shows that the main results survive account-day aggregation, SI~\ref{tab:rdd-province-jackknife} shows that they are not driven by any single province, SI~\ref{tab:rdd-cutoff-randomization} reports a local placebo-cutoff procedure tailored to the discrete running variable, and SI~\ref{tab:rdd-2020-alt-samples} shows that the 2020 estimates are similar after excluding COVID- and emergency-linked posts or excluding Hubei and Wuhan accounts.
+The SI extends these validity checks in three directions. SI~\ref{tab:rdd-balance-extended} reports richer composition diagnostics, including title length, head-article share, and additional content shares. SI~\ref{tab:rdd-account-day} shows that the main results survive account-day aggregation, and SI~\ref{tab:rdd-2020-alt-samples} shows that the 2020 estimates are similar after excluding COVID- and emergency-linked posts or excluding Hubei and Wuhan accounts.
 
 \section{Conclusion}
 
@@ -647,6 +694,14 @@ Its function is mechanism robustness. The table shows that the 2020 decompositio
 
 \input{../tables/appendix_rdd_2020_component_robustness.tex}
 
+\subsection{Alternative Outcome Definitions}
+
+Table~\ref{tab:rdd-extensive-margin} turns each channel into an indicator for any positive engagement, isolating whether the interface changes the probability of leaving any trace at all. In 2018, the probability of any one-click engagement falls by 11.4 percentage points, while any share remains flat. In 2020, any one-click engagement rises by 29.2 points, driven by a 41.1-point jump in any like; any share again remains flat. Any \textit{zaikan} also rises modestly, even though the average \textit{zaikan} rate falls in the main specifications.
+
+Its function is participation-margin decomposition. The table separates the decision to leave any trace from the amount of engagement conditional on participation, and it shows that the 2020 redesign mainly widened participation in low-visibility approval without generating a parallel increase in sharing.
+
+\input{../tables/appendix_rdd_extensive_margin.tex}
+
 \subsection{Placebo Cutoffs}
 
 Table~\ref{tab:rdd-placebo-cutoffs} tests the one-click rate at four non-event dates spaced $\pm$3 and $\pm$6 months from the December 2018 cutoff. Three of four placebos are not significant. The March 2019 date ($p = 0.035$) falls near the haokan-to-zaikan rename, consistent with a small behavioral effect of the wording change.
@@ -676,22 +731,6 @@ Table~\ref{tab:rdd-account-day} re-estimates the main designs after collapsing t
 Its function is weighting robustness. The table addresses the concern that article-level estimates might be driven disproportionately by a small number of high-volume accounts.
 
 \input{../tables/appendix_rdd_account_day.tex}
-
-\subsection{Leave-One-Province-Out Jackknife}
-
-Table~\ref{tab:rdd-province-jackknife} re-estimates the main article-level RDDs while omitting one province at a time. The estimates move only slightly: the 2018 one-click effect remains between $-0.021$ and $-0.017$, the 2020 one-click effect between 0.027 and 0.031, the 2020 like effect between 0.042 and 0.044, and the 2020 \textit{zaikan} effect between $-0.013$ and $-0.011$. All leave-one-province estimates preserve both sign and statistical significance.
-
-Its function is geographic concentration robustness. The table addresses the concern that the national estimates might really be driven by a single influential provincial unit or an unusually large regional cluster.
-
-\input{../tables/appendix_rdd_province_jackknife.tex}
-
-\subsection{Discrete Running Variable and Local Placebo-Cutoff Inference}
-
-Table~\ref{tab:rdd-cutoff-randomization} addresses the day-level discreteness of the running variable by comparing the observed estimate with estimates obtained from alternative placebo cutoffs in a local neighborhood around each reform date. The main 2018 and 2020 one-click estimates remain unusually large relative to nearby placebo cutoffs.
-
-The function of this table is inference robustness for a discrete running variable. It shows that the observed discontinuities still look unusually large even when evaluated against nearby alternative cutoffs.
-
-\input{../tables/appendix_rdd_cutoff_randomization.tex}
 
 \subsection{Alternative 2020 Samples}
 
