@@ -495,16 +495,16 @@ family_like_post_base <- c(
   hard_propaganda = 0.019
 )
 family_look_mid_base <- c(
-  public_service = 0.042,
-  soft_propaganda = 0.036,
-  state_governance = 0.027,
-  hard_propaganda = 0.021
+  public_service = 0.036,
+  soft_propaganda = 0.030,
+  state_governance = 0.023,
+  hard_propaganda = 0.018
 )
 family_look_post_base <- c(
-  public_service = 0.018,
-  soft_propaganda = 0.014,
-  state_governance = 0.011,
-  hard_propaganda = 0.008
+  public_service = 0.020,
+  soft_propaganda = 0.015,
+  state_governance = 0.010,
+  hard_propaganda = 0.004
 )
 family_like_return_bonus <- c(
   public_service = 0.74,
