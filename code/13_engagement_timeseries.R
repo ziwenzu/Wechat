@@ -21,7 +21,7 @@ monthly_like <- dt[
   .(value = mean(like_rate, na.rm = TRUE)),
   by = year_month
 ]
-monthly_like[, metric := "Like Rate (Dianzan)"]
+monthly_like[, metric := "Like engagement rate"]
 monthly_like[, segment := ifelse(year_month < cut_like_to_haokan, "pre", "post")]
 
 monthly_look <- dt[
@@ -29,17 +29,17 @@ monthly_look <- dt[
   .(value = mean(look_rate, na.rm = TRUE)),
   by = year_month
 ]
-monthly_look[, metric := "Haokan / Zaikan Rate"]
+monthly_look[, metric := "Haokan/Zaikan engagement rate"]
 monthly_look[, segment := "all"]
 
 monthly_share <- dt[, .(value = mean(share_rate, na.rm = TRUE)), by = year_month]
-monthly_share[, metric := "Share Rate"]
+monthly_share[, metric := "Share engagement rate"]
 monthly_share[, segment := "all"]
 
 metric_levels <- c(
-  "Like Rate (Dianzan)",
-  "Haokan / Zaikan Rate (renamed Mar 2019)",
-  "Share / Forward Rate"
+  "Like engagement rate",
+  "Haokan/Zaikan engagement rate (renamed Mar. 2019)",
+  "Share engagement rate"
 )
 
 ts_theme <- ggplot2::theme_classic(base_size = 11, base_family = "serif") +
@@ -55,8 +55,8 @@ ts_theme <- ggplot2::theme_classic(base_size = 11, base_family = "serif") +
     axis.ticks.length = ggplot2::unit(0.12, "cm"),
     plot.margin = ggplot2::margin(t = 4, r = 10, b = 8, l = 8)
   )
-monthly_look[, metric := "Haokan / Zaikan Rate (renamed Mar 2019)"]
-monthly_share[, metric := "Share / Forward Rate"]
+monthly_look[, metric := "Haokan/Zaikan engagement rate (renamed Mar. 2019)"]
+monthly_share[, metric := "Share engagement rate"]
 
 plot_dt <- data.table::rbindlist(list(monthly_like, monthly_look, monthly_share))
 plot_dt[, metric := factor(metric, levels = metric_levels)]
@@ -67,18 +67,18 @@ like_ymin <- min(monthly_like$value)
 like_ymax <- max(monthly_like$value)
 like_yspan <- like_ymax - like_ymin
 
-first_panel <- factor("Like Rate (Dianzan)", levels = metric_levels)
+first_panel <- factor("Like engagement rate", levels = metric_levels)
 arrow_span_days <- 120L
 
 label_df <- data.frame(
   x = as.Date(c("2017-06-01", "2022-01-01")),
   y = c(
     like_ymax - 0.15 * like_yspan,
-    like_ymax - 0.15 * like_yspan
+    like_ymax - 0.22 * like_yspan
   ),
   label = c(
-    "Dec 2018: Like replaced\nby Haokan",
-    "Jul 2020: Footer becomes\nLike + Zaikan + Share/Forward\n(current layout)"
+    "Dec. 2018: Haokan replaces\nLike",
+    "Jul. 2020: Like returns\nbeside Zaikan"
   ),
   metric = first_panel,
   stringsAsFactors = FALSE
@@ -153,4 +153,52 @@ save_figure(
   useDingbats = FALSE
 )
 
+# A landscape copy for the Beamer deck. The data and layers are unchanged;
+# only the aspect ratio and typography are adapted for a 16:9 screen.
+slide_output_dir <- file.path(paths$root, "slides", "figures")
+fs::dir_create(slide_output_dir, recurse = TRUE)
+
+p_slide <- p +
+  ggplot2::labs(y = "Monthly mean engagement rate") +
+  ggplot2::theme(
+    text = ggplot2::element_text(family = "sans"),
+    strip.text = ggplot2::element_text(
+      family = "sans",
+      size = 14.5,
+      face = "plain",
+      margin = ggplot2::margin(b = 2)
+    ),
+    panel.spacing = ggplot2::unit(0.65, "lines"),
+    axis.text = ggplot2::element_text(
+      family = "sans",
+      size = 12.5,
+      color = "#303030"
+    ),
+    axis.title = ggplot2::element_text(
+      family = "sans",
+      size = 14,
+      color = "#1A1A1A"
+    ),
+    plot.margin = ggplot2::margin(t = 2, r = 7, b = 4, l = 6)
+  )
+
+p_slide$layers[[3]]$aes_params$size <- 4.2
+p_slide$layers[[3]]$aes_params$family <- "sans"
+
+slide_output_path <- file.path(
+  slide_output_dir,
+  "main_engagement_timeseries_slide.pdf"
+)
+
+save_figure(
+  path = slide_output_path,
+  plot = p_slide,
+  width = 10.5,
+  height = 4.8,
+  units = "in",
+  bg = "white",
+  useDingbats = FALSE
+)
+
 message("Saved engagement time-series figure to: ", output_path)
+message("Saved slide version to: ", slide_output_path)
